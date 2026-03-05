@@ -49,7 +49,6 @@ model User {
   
   // Settings
   emailVerified   Boolean       @default(false)
-  twoFactorEnabled Boolean      @default(false)
   newsletterOptIn Boolean       @default(true)
   darkMode        Boolean       @default(false)
   language        String        @default("en")
@@ -77,23 +76,17 @@ model User {
   recentlyViewed  RecentlyViewed[]
   priceAlerts     PriceAlert[]
   comparisons     Comparison[]
-  refunds         Refund[]
   giftCards       GiftCard[]    @relation("GiftCardOwner")
   createdGiftCards GiftCard[]   @relation("GiftCardCreator")
-  referrals       Referral[]    @relation("Referrer")
-  referredBy      Referral?     @relation("ReferredUser")
   supportTickets  SupportTicket[]
   ticketReplies   TicketReply[]
-  reports         Report[]
-  vendorPayouts   VendorPayout[]
-  brand           Brand?        @relation("BrandOwner")
 }
 
 model Address {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label         String   // Home, Work, etc.
+  label         String
   fullName      String
   phone         String
   addressLine1  String
@@ -131,40 +124,26 @@ model Product {
   // Categorization
   category          String
   subCategory       String?
-  subSubCategory    String?
   brand             String?
-  brandId           String?
   tags              String?
   
   // Attributes
   condition         String        @default("new")
   material          String?
-  weight            Float?
-  weightUnit        String?       @default("kg")
-  dimensions        String?       // JSON: {length, width, height}
   color             String?
   size              String?
-  gender            String?       // men, women, unisex, kids
+  gender            String?
   
   // Inventory
   stock             Int           @default(1)
   lowStockThreshold Int           @default(5)
-  stockStatus       String        @default("in_stock") // in_stock, low_stock, out_of_stock
-  skuVariants       String?       // JSON array of variant SKUs
-  
-  // SEO
-  metaTitle         String?
-  metaDesc          String?
-  metaKeywords      String?
   
   // Stats
   views             Int           @default(0)
   wishlistCount     Int           @default(0)
-  cartCount         Int           @default(0)
   soldCount         Int           @default(0)
   rating            Float         @default(0)
   reviewCount       Int           @default(0)
-  questionCount     Int           @default(0)
   
   // Status
   status            String        @default("active")
@@ -172,7 +151,6 @@ model Product {
   isNew             Boolean       @default(true)
   isTrending        Boolean       @default(false)
   isBestSeller      Boolean       @default(false)
-  isFlashSale       Boolean       @default(false)
   
   // Shipping
   freeShipping      Boolean       @default(false)
@@ -189,11 +167,8 @@ model Product {
   recentlyViewed    RecentlyViewed[]
   priceAlerts       PriceAlert[]
   comparisons       Comparison[]
-  productQuestions  ProductQuestion[]
   flashSale         FlashSale?
-  bundleProducts    BundleProduct[]
   priceHistory      PriceHistory[]
-  refunds           RefundItem[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -207,40 +182,6 @@ model PriceHistory {
   recordedAt  DateTime @default(now())
 }
 
-model ProductQuestion {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId      String
-  question    String
-  answer      String?
-  answeredBy  String?
-  answeredAt  DateTime?
-  isHelpful   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// ==================== BRANDS ====================
-
-model Brand {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  logo        String?
-  banner      String?
-  description String?
-  website     String?
-  isVerified  Boolean   @default(false)
-  isFeatured  Boolean   @default(false)
-  productCount Int      @default(0)
-  followerCount Int     @default(0)
-  ownerId     String?
-  owner       User?     @relation("BrandOwner", fields: [ownerId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
 // ==================== CART & CHECKOUT ====================
 
 model CartItem {
@@ -250,7 +191,7 @@ model CartItem {
   productId   String
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity    Int
-  variant     String?  // JSON: {size, color}
+  variant     String?
   savedForLater Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -265,11 +206,8 @@ model Order {
   orderNumber       String        @unique
   invoiceNumber     String?
   
-  // Parties
   buyerId           String
   buyer             User          @relation(fields: [buyerId], references: [id])
-  
-  // Items
   items             OrderItem[]
   
   // Pricing
@@ -278,8 +216,8 @@ model Order {
   shipping          Float         @default(0)
   tax               Float         @default(0)
   totalAmount       Float
-  commission        Float
-  sellerEarnings    Float
+  commission        Float         @default(0)
+  sellerEarnings    Float         @default(0)
   currency          String        @default("USD")
   
   // Status
@@ -297,7 +235,6 @@ model Order {
   shippingZipCode   String?
   shippingPhone     String?
   shippingMethod    String?
-  shippingCost      Float?
   trackingNumber    String?
   trackingUrl       String?
   carrier           String?
@@ -311,25 +248,21 @@ model Order {
   notes             String?
   giftMessage       String?
   isGift            Boolean       @default(false)
-  giftWrapCost      Float         @default(0)
-  
-  // Coupon
-  couponId          String?
-  coupon            UserCoupon?
   
   // Points
   loyaltyEarned     Int           @default(0)
   loyaltyUsed       Int           @default(0)
-  pointsDiscount    Float         @default(0)
+  
+  // Coupon
+  couponCode        String?
+  couponDiscount    Float         @default(0)
   
   // Gift Card
-  giftCardId        String?
-  giftCardAmount    Float         @default(0)
+  giftCardCode      String?
+  giftCardDiscount  Float         @default(0)
   
-  // Timestamps
   cancelledAt       DateTime?
   cancelReason      String?
-  deliveredImage    String?       // Delivery confirmation photo
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -344,45 +277,10 @@ model OrderItem {
   quantity    Int
   price       Float
   variant     String?
-  status      String   @default("pending") // per-item status
+  status      String   @default("pending")
   shippedAt   DateTime?
   deliveredAt DateTime?
   createdAt   DateTime @default(now())
-}
-
-// ==================== REFUNDS ====================
-
-model Refund {
-  id              String        @id @default(cuid())
-  orderId         String
-  order           Order         @relation(fields: [orderId], references: [id])
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  items           RefundItem[]
-  reason          String
-  description     String?
-  status          String        @default("pending") // pending, approved, rejected, completed
-  refundMethod    String        @default("original") // original, wallet, bank
-  refundAmount    Float
-  refundShipping  Float         @default(0)
-  adminNotes      String?
-  processedAt     DateTime?
-  completedAt     DateTime?
-  trackingNumber  String?       // Return tracking
-  returnImages    String?       // JSON array of proof images
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
-model RefundItem {
-  id          String   @id @default(cuid())
-  refundId    String
-  refund      Refund  @relation(fields: [refundId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  quantity    Int
-  price       Float
-  reason      String?
 }
 
 // ==================== REVIEWS ====================
@@ -394,18 +292,17 @@ model Review {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   orderId     String?
-  rating      Int      // 1-5 stars
+  rating      Int
   title       String?
   comment     String
-  images      String?  // JSON array
-  videos      String?  // JSON array
-  isVerified  Boolean  @default(false) // Verified purchase
+  images      String?
+  isVerified  Boolean  @default(false)
   isFeatured  Boolean  @default(false)
   helpful     Int      @default(0)
   notHelpful  Int      @default(0)
-  reply       String?  // Seller reply
+  reply       String?
   repliedAt   DateTime?
-  status      String   @default("active") // active, hidden, deleted
+  status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -427,12 +324,12 @@ model Wishlist {
 }
 
 model RecentlyViewed {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  viewCount Int      @default(1)
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  viewCount  Int      @default(1)
   lastViewed DateTime @default(now())
   
   @@unique([userId, productId])
@@ -447,7 +344,6 @@ model PriceAlert {
   targetPrice Float
   isNotified  Boolean  @default(false)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
 model Comparison {
@@ -466,7 +362,7 @@ model Comparison {
 model Coupon {
   id           String       @id @default(cuid())
   code         String       @unique
-  type         String       // percentage, fixed, free_shipping
+  type         String
   value        Float
   minPurchase  Float?
   maxDiscount  Float?
@@ -477,10 +373,6 @@ model Coupon {
   endDate      DateTime
   isActive     Boolean      @default(true)
   description  String?
-  appliesTo    String?      // all, category, product, brand
-  categoryIds  String?      // JSON array
-  productIds   String?      // JSON array
-  brandIds     String?      // JSON array
   createdAt    DateTime     @default(now())
   userCoupons  UserCoupon[]
 }
@@ -493,8 +385,6 @@ model UserCoupon {
   coupon     Coupon    @relation(fields: [couponId], references: [id])
   isUsed     Boolean   @default(false)
   usedAt     DateTime?
-  orderId    String?   @unique
-  order      Order?    @relation(fields: [orderId], references: [id])
   createdAt  DateTime  @default(now())
   
   @@unique([userId, couponId])
@@ -514,25 +404,15 @@ model FlashSale {
 }
 
 model Bundle {
-  id          String         @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
-  discount    Float          // Percentage discount
-  price       Float          // Bundle price
-  products    BundleProduct[]
-  images      String?        // JSON array
-  isActive    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
-
-model BundleProduct {
-  id        String   @id @default(cuid())
-  bundleId  String
-  bundle    Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int      @default(1)
+  discount    Float
+  price       Float
+  productIds  String   // JSON array of product IDs
+  images      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 // ==================== GIFT CARDS ====================
@@ -549,90 +429,84 @@ model GiftCard {
   createdBy     User?     @relation("GiftCardCreator", fields: [createdById], references: [id])
   recipientEmail String?
   message       String?
-  theme         String?   // birthday, holiday, etc.
   isUsed        Boolean   @default(false)
   usedAt        DateTime?
   expiresAt     DateTime?
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
 }
 
 // ==================== REFERRAL SYSTEM ====================
 
 model Referral {
-  id            String    @id @default(cuid())
-  referrerId    String
-  referrer      User      @relation("Referrer", fields: [referrerId], references: [id])
-  referredId    String    @unique
-  referredUser  User      @relation("ReferredUser", fields: [referredId], references: [id])
-  code          String    @unique
-  rewardAmount  Float
-  rewardPoints  Int       @default(100)
-  isRewardClaimed Boolean @default(false)
-  claimedAt     DateTime?
-  createdAt     DateTime  @default(now())
+  id              String    @id @default(cuid())
+  code            String    @unique
+  referrerId      String    @unique
+  referredCount   Int       @default(0)
+  totalRewards    Float     @default(0)
+  rewardPerReferral Float   @default(10)
+  pointsPerReferral Int     @default(100)
+  createdAt       DateTime  @default(now())
 }
 
 // ==================== COMMUNICATION ====================
 
 model Message {
-  id            String    @id @default(cuid())
-  senderId      String
-  sender        User      @relation("MessageSender", fields: [senderId], references: [id])
-  receiverId    String
-  receiver      User      @relation("MessageReceiver", fields: [receiverId], references: [id])
-  productId     String?
-  orderId       String?
-  subject       String?
-  message       String
-  attachments   String?   // JSON array
-  isRead        Boolean   @default(false)
-  readAt        DateTime?
-  createdAt     DateTime  @default(now())
-}
-
-model Notification {
   id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String    // order, message, review, promotion, system, price_drop
-  title       String
+  senderId    String
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id])
+  productId   String?
+  orderId     String?
+  subject     String?
   message     String
-  link        String?
-  image       String?
-  data        String?   // JSON for additional data
+  attachments String?
   isRead      Boolean   @default(false)
   readAt      DateTime?
   createdAt   DateTime  @default(now())
 }
 
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  image     String?
+  data      String?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
 model SupportTicket {
-  id          String         @id @default(cuid())
+  id          String        @id @default(cuid())
   userId      String
-  user        User           @relation(fields: [userId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
   orderId     String?
   subject     String
-  category    String         // order, payment, shipping, return, other
-  priority    String         @default("normal") // low, normal, high, urgent
-  status      String         @default("open") // open, in_progress, resolved, closed
+  category    String
+  priority    String        @default("normal")
+  status      String        @default("open")
   replies     TicketReply[]
-  assignedTo  String?
   resolvedAt  DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model TicketReply {
-  id        String        @id @default(cuid())
-  ticketId  String
-  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User          @relation(fields: [userId], references: [id])
-  message   String
-  attachments String?     // JSON array
-  isStaff   Boolean       @default(false)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(cuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  message     String
+  attachments String?
+  isStaff     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
 }
 
 // ==================== BLOG ====================
@@ -647,11 +521,10 @@ model Blog {
   authorId    String
   author      User      @relation(fields: [authorId], references: [id])
   category    String?
-  tags        String?   // JSON array
+  tags        String?
   status      String    @default("draft")
   views       Int       @default(0)
   likes       Int       @default(0)
-  readTime    Int?      // minutes
   isFeatured  Boolean   @default(false)
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -671,38 +544,6 @@ model Follow {
   @@unique([followerId, followingId])
 }
 
-model Report {
-  id          String    @id @default(cuid())
-  reporterId  String
-  reporter    User      @relation(fields: [reporterId], references: [id])
-  reportedId  String    // User or Product ID
-  reportedType String   // user, product, review
-  reason      String
-  description String?
-  status      String    @default("pending") // pending, reviewed, resolved, dismissed
-  action      String?
-  reviewedBy  String?
-  reviewedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-// ==================== PAYOUTS ====================
-
-model VendorPayout {
-  id          String    @id @default(cuid())
-  sellerId    String
-  seller      User      @relation(fields: [sellerId], references: [id])
-  amount      Float
-  status      String    @default("pending") // pending, processing, completed, failed
-  method      String    // bank, paypal, wallet
-  accountInfo String?   // Masked account info
-  reference   String?
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
 // ==================== SETTINGS ====================
 
 model PlatformSettings {
@@ -712,66 +553,35 @@ model PlatformSettings {
   platformLogo        String?
   platformBanner      String?
   platformFavicon     String?
-  
-  // Commission
   commissionRate      Float   @default(0.10)
   minPayout           Float   @default(50)
-  
-  // Loyalty
   loyaltyRate         Float   @default(0.01)
   pointValue          Float   @default(0.01)
   referralBonus       Float   @default(10)
   referralPoints      Int     @default(100)
-  
-  // Styling
   primaryColor        String  @default("#7c3aed")
   secondaryColor      String  @default("#ec4899")
-  
-  // Contact
   supportEmail        String?
   supportPhone        String?
-  supportAddress      String?
-  
-  // Social
   socialLinks         String?
-  
-  // SEO
   seoTitle            String?
   seoDesc             String?
   seoKeywords         String?
-  
-  // Legal
   termsOfService      String?
   privacyPolicy       String?
   returnPolicy        String?
   shippingPolicy      String?
-  
-  // Features
-  enableBlog          Boolean @default(true)
-  enableReviews       Boolean @default(true)
-  enableWishlist      Boolean @default(true)
-  enableComparison    Boolean @default(true)
-  enableFlashSale     Boolean @default(true)
-  enableBundles       Boolean @default(true)
-  enableGiftCards     Boolean @default(true)
-  enableReferrals     Boolean @default(true)
-  
-  // Shipping
   freeShippingThreshold Float?
   defaultShippingCost  Float  @default(5.99)
-  
-  // Tax
-  taxRate             Float   @default(0)
-  taxIncluded         Boolean @default(false)
 }
 
 // ==================== NEWSLETTER ====================
 
 model Newsletter {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  subscribedAt DateTime @default(now())
+  id             String    @id @default(cuid())
+  email          String    @unique
+  isActive       Boolean   @default(true)
+  subscribedAt   DateTime  @default(now())
   unsubscribedAt DateTime?
 }
 
@@ -790,13 +600,12 @@ model ContactMessage {
 // ==================== HELP CENTER ====================
 
 model HelpCategory {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  icon        String?
-  order       Int       @default(0)
-  articles    HelpArticle[]
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
 }
 
 model HelpArticle {
@@ -814,7 +623,7 @@ model HelpArticle {
   updatedAt   DateTime  @updatedAt
 }
 
-// ==================== PROMOTIONAL BANNERS ====================
+// ==================== BANNERS ====================
 
 model Banner {
   id          String    @id @default(cuid())
@@ -823,7 +632,7 @@ model Banner {
   image       String
   link        String?
   buttonText  String?
-  position    String    @default("hero") // hero, sidebar, footer
+  position    String    @default("hero")
   startDate   DateTime?
   endDate     DateTime?
   isActive    Boolean   @default(true)
@@ -839,7 +648,40 @@ model Collection {
   slug        String    @unique
   description String?
   image       String?
-  productIds  String?   // JSON array
+  productIds  String?
   isFeatured  Boolean   @default(false)
   createdAt   DateTime  @default(now())
+}
+
+// ==================== BRANDS ====================
+
+model Brand {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  slug          String    @unique
+  logo          String?
+  banner        String?
+  description   String?
+  website       String?
+  isVerified    Boolean   @default(false)
+  isFeatured    Boolean   @default(false)
+  productCount  Int       @default(0)
+  followerCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ==================== VENDOR PAYOUTS ====================
+
+model VendorPayout {
+  id          String    @id @default(cuid())
+  sellerId    String
+  amount      Float
+  status      String    @default("pending")
+  method      String
+  accountInfo String?
+  reference   String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
