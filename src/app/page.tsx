@@ -36,10 +36,9 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { 
   useAuthStore, useCartStore, useUIStore, useWishlistStore,
-  useCompareStore, useRecentlyViewedStore, useAddressStore, 
-  usePriceAlertStore, useGiftCardStore, useReferralStore,
+  useComparisonStore, useRecentlyViewedStore, usePriceAlertStore,
   type Product, type User as UserType, type Review, type Message, type Notification, type Coupon, type Blog,
-  type Address, type PriceAlert, type ReturnRequest, type GiftCard, type Brand, type Collection
+  type Brand, type Collection, type Banner, type HelpCategory, type HelpArticle
 } from '@/lib/store'
 
 // Categories with rich data
