@@ -13,7 +13,11 @@ import {
   Gift, Percent, Tag, Clock3, Zap, Award, Shield, BadgeCheck,
   BarChart3, PieChart, Activity, TrendingDown, Wallet, CreditCard,
   FileText, HelpCircle, Info, Send, Paperclip, Smile, MoreHorizontal,
-  HeartHandshake, Users2, Briefcase, BookOpen, Home, Layers
+  HeartHandshake, Users2, Briefcase, BookOpen, Home, Layers,
+  Ruler, Copy, Check, RefreshCw, AlertTriangle, Timer, Target,
+  Link2, ArrowLeftRight, Building, Compass, Flame, Calendar,
+  FileQuestion, Headphones, Ticket, Banknote, UserPlus, MousePointer,
+  Move, Ruler as RulerIcon, PieChart as PieChartIcon, LineChart
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,10 +32,14 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { 
   useAuthStore, useCartStore, useUIStore, useWishlistStore,
-  type Product, type User as UserType, type Review, type Message, type Notification, type Coupon, type Blog
+  useCompareStore, useRecentlyViewedStore, useAddressStore, 
+  usePriceAlertStore, useGiftCardStore, useReferralStore,
+  type Product, type User as UserType, type Review, type Message, type Notification, type Coupon, type Blog,
+  type Address, type PriceAlert, type ReturnRequest, type GiftCard, type Brand, type Collection
 } from '@/lib/store'
 
 // Categories with rich data
@@ -125,6 +133,14 @@ export default function Marketplace() {
     showCart, setShowCart, showProductModal, setShowProductModal,
     showFilters, setShowFilters, darkMode, toggleDarkMode
   } = useUIStore()
+  
+  // New stores
+  const { items: compareItems, addItem: addToCompare, removeItem: removeFromCompare, clearAll: clearCompare, hasItem: isInCompare, getItemCount: getCompareCount } = useCompareStore()
+  const { items: recentlyViewedItems, addItem: addToRecentlyViewed, clearAll: clearRecentlyViewed } = useRecentlyViewedStore()
+  const { addresses, addAddress, updateAddress, removeAddress, setDefault: setDefaultAddress, selectedAddress, setSelectedAddress } = useAddressStore()
+  const { alerts: priceAlerts, addAlert: addPriceAlert, removeAlert: removePriceAlert, toggleActive: togglePriceAlertActive } = usePriceAlertStore()
+  const { appliedGiftCard, applyGiftCard, getGiftCardBalance } = useGiftCardStore()
+  const { referralCode, referralStats, setReferralCode, setReferralStats } = useReferralStore()
 
   // Form states
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login')
@@ -147,6 +163,25 @@ export default function Marketplace() {
   const [messageForm, setMessageForm] = useState({
     receiverId: '', subject: '', message: ''
   })
+  
+  // Additional form states for new views
+  const [addressForm, setAddressForm] = useState({
+    name: '', phone: '', address: '', city: '', state: '', country: '', postalCode: '', addressType: 'shipping' as 'shipping' | 'billing'
+  })
+  const [returnForm, setReturnForm] = useState({
+    orderId: '', reason: '', description: '', images: [] as string[]
+  })
+  const [giftCardForm, setGiftCardForm] = useState({
+    amount: 50, recipientEmail: '', recipientName: '', message: ''
+  })
+  const [priceAlertForm, setPriceAlertForm] = useState({
+    productId: '', targetPrice: ''
+  })
+  const [contactForm, setContactForm] = useState({
+    name: '', email: '', subject: '', message: ''
+  })
+  const [helpSearchQuery, setHelpSearchQuery] = useState('')
+  const [selectedSizeCategory, setSelectedSizeCategory] = useState('clothes')
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
@@ -1789,6 +1824,1242 @@ export default function Marketplace() {
               </Tabs>
             </motion.div>
           )}
+
+          {/* COMPARE VIEW */}
+          {currentView === 'compare' && (
+            <motion.div key="compare" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <ArrowLeftRight className="w-6 h-6 inline mr-2 text-purple-500" />
+                  Compare Products ({getCompareCount()}/4)
+                </h2>
+                {compareItems.length > 0 && (
+                  <Button variant="outline" onClick={clearCompare} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4 mr-2" /> Clear All
+                  </Button>
+                )}
+              </div>
+
+              {compareItems.length === 0 ? (
+                <Card className={`text-center py-12 ${darkMode ? 'bg-slate-800 border-slate-700' : ''}`}>
+                  <CardContent>
+                    <ArrowLeftRight className={`w-12 h-12 ${darkMode ? 'text-slate-600' : 'text-slate-300'} mx-auto mb-4`} />
+                    <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>No products to compare</h4>
+                    <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-4`}>Add products to compare their features side by side</p>
+                    <Button onClick={() => setCurrentView('shop')}>Browse Products</Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {compareItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl overflow-hidden shadow-lg`}
+                    >
+                      <div className="relative aspect-square">
+                        <img src={item.product?.images?.[0]} alt={item.product?.name} className="w-full h-full object-cover" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 rounded-full bg-red-500 text-white hover:bg-red-600"
+                          onClick={() => removeFromCompare(item.productId)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.product?.brand}</p>
+                          <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} line-clamp-2`}>{item.product?.name}</h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg text-purple-600">${item.product?.price.toFixed(2)}</span>
+                          {item.product?.comparePrice && (
+                            <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'} line-through`}>
+                              ${item.product.comparePrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-3 h-3 ${i < Math.floor(item.product?.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                          ))}
+                          <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'} ml-1`}>({item.product?.reviewCount})</span>
+                        </div>
+                        <Separator className={darkMode ? 'bg-slate-700' : ''} />
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Category</span>
+                            <span className={darkMode ? 'text-white' : ''}>{item.product?.category}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Condition</span>
+                            <Badge className={conditionColors[item.product?.condition || 'new']}>{item.product?.condition}</Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Stock</span>
+                            <span className={item.product?.stock && item.product.stock < 5 ? 'text-orange-500' : darkMode ? 'text-white' : ''}>{item.product?.stock} units</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Sold</span>
+                            <span className={darkMode ? 'text-white' : ''}>{item.product?.soldCount || 0}</span>
+                          </div>
+                        </div>
+                        <Button className="w-full mt-2 bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => { if(item.product) { addItem(item.product); toast.success('Added to cart!') } }}>
+                          <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* HELP CENTER VIEW */}
+          {currentView === 'help' && (
+            <motion.div key="help" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>How can we help you?</h2>
+                <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-6`}>Find answers to common questions or contact our support team</p>
+                <div className="max-w-xl mx-auto">
+                  <div className="relative">
+                    <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-slate-400' : 'text-slate-400'}`} />
+                    <input
+                      type="text"
+                      placeholder="Search for help articles..."
+                      value={helpSearchQuery}
+                      onChange={(e) => setHelpSearchQuery(e.target.value)}
+                      className={`w-full pl-12 pr-4 py-4 rounded-xl border ${darkMode ? 'bg-slate-800 text-white border-slate-700' : 'bg-white border-slate-200'} focus:ring-2 focus:ring-purple-500`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Help Categories */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {[
+                  { icon: Sparkles, name: 'Getting Started', color: 'from-blue-500 to-cyan-500', view: 'getting-started' },
+                  { icon: Package, name: 'Orders & Shipping', color: 'from-green-500 to-emerald-500', view: 'orders-shipping' },
+                  { icon: RefreshCw, name: 'Returns & Refunds', color: 'from-orange-500 to-amber-500', view: 'returns-refunds' },
+                  { icon: CreditCard, name: 'Payments', color: 'from-purple-500 to-pink-500', view: 'payments' },
+                  { icon: User, name: 'Account & Profile', color: 'from-red-500 to-rose-500', view: 'account-profile' },
+                  { icon: Store, name: 'Selling on StyleHub', color: 'from-teal-500 to-cyan-500', view: 'selling' },
+                ].map((category, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    whileHover={{ y: -5 }}
+                    className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl p-6 text-center cursor-pointer shadow-lg hover:shadow-xl transition-all`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mx-auto mb-3`}>
+                      <category.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>{category.name}</h3>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Popular Articles */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}>
+                    <FileText className="w-5 h-5 text-purple-500" />
+                    Popular Articles
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      'How do I track my order?',
+                      'What is the return policy?',
+                      'How do I become a seller?',
+                      'Payment methods accepted',
+                      'How to use coupon codes',
+                    ].map((article, i) => (
+                      <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-slate-50 hover:bg-slate-100'} cursor-pointer transition-colors`}>
+                        <span className={darkMode ? 'text-white' : ''}>{article}</span>
+                        <ChevronRight className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Contact Support */}
+              <Card className={`${darkMode ? 'bg-slate-800 border-slate-700' : ''} border-2 border-dashed border-purple-300`}>
+                <CardContent className="p-8 text-center">
+                  <Headphones className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+                  <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Still need help?</h3>
+                  <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-4`}>Our support team is available 24/7</p>
+                  <div className="flex justify-center gap-4">
+                    <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => setCurrentView('contact')}>
+                      <Mail className="w-4 h-4 mr-2" /> Contact Support
+                    </Button>
+                    <Button variant="outline" className={darkMode ? 'border-slate-600' : ''}>
+                      <MessageCircle className="w-4 h-4 mr-2" /> Live Chat
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* RETURNS VIEW */}
+          {currentView === 'returns' && (
+            <motion.div key="returns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <RefreshCw className="w-6 h-6 inline mr-2 text-orange-500" />
+                  Returns & Refunds
+                </h2>
+                <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => setReturnForm({ orderId: '', reason: '', description: '', images: [] })}>
+                  <Plus className="w-4 h-4 mr-2" /> New Return Request
+                </Button>
+              </div>
+
+              {/* Return Request Form */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>Create Return Request</CardTitle>
+                  <CardDescription>Submit a return request for your order</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Order ID</Label>
+                      <Select value={returnForm.orderId} onValueChange={(v) => setReturnForm(prev => ({ ...prev, orderId: v }))}>
+                        <SelectTrigger className={darkMode ? 'bg-slate-700 border-slate-600' : ''}>
+                          <SelectValue placeholder="Select order" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {orders.map((order) => (
+                            <SelectItem key={order.id} value={order.id}>#{order.orderNumber || order.id.slice(-8)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Reason</Label>
+                      <Select value={returnForm.reason} onValueChange={(v) => setReturnForm(prev => ({ ...prev, reason: v }))}>
+                        <SelectTrigger className={darkMode ? 'bg-slate-700 border-slate-600' : ''}>
+                          <SelectValue placeholder="Select reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="damaged">Item damaged</SelectItem>
+                          <SelectItem value="wrong">Wrong item received</SelectItem>
+                          <SelectItem value="description">Item not as described</SelectItem>
+                          <SelectItem value="changed-mind">Changed mind</SelectItem>
+                          <SelectItem value="quality">Quality issues</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className={darkMode ? 'text-white' : ''}>Description</Label>
+                    <Textarea
+                      value={returnForm.description}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Please describe the issue..."
+                      rows={3}
+                      className={darkMode ? 'bg-slate-700 border-slate-600' : ''}
+                    />
+                  </div>
+                  <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => toast.success('Return request submitted!')}>
+                    Submit Return Request
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Return Status Badges Legend */}
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { status: 'pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+                  { status: 'approved', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+                  { status: 'rejected', color: 'bg-red-100 text-red-700', icon: X },
+                  { status: 'completed', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+                ].map((s) => (
+                  <div key={s.status} className="flex items-center gap-2">
+                    <Badge className={s.color}><s.icon className="w-3 h-3 mr-1" />{s.status}</Badge>
+                  </div>
+                ))}
+              </div>
+
+              {/* Return History */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>Return History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-center py-8 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <RefreshCw className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p>No return requests yet</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* GIFT CARDS VIEW */}
+          {currentView === 'giftcards' && (
+            <motion.div key="giftcards" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <Gift className="w-6 h-6 inline mr-2 text-pink-500" />
+                  Gift Cards
+                </h2>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Purchase Gift Card */}
+                <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                  <CardHeader>
+                    <CardTitle className={darkMode ? 'text-white' : ''}>Purchase Gift Card</CardTitle>
+                    <CardDescription>Send a gift card to someone special</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Select Amount</Label>
+                      <div className="grid grid-cols-5 gap-2 mt-2">
+                        {[25, 50, 100, 200, 500].map((amount) => (
+                          <Button
+                            key={amount}
+                            variant={giftCardForm.amount === amount ? 'default' : 'outline'}
+                            className={giftCardForm.amount === amount ? 'bg-purple-600' : darkMode ? 'border-slate-600' : ''}
+                            onClick={() => setGiftCardForm(prev => ({ ...prev, amount }))}
+                          >
+                            ${amount}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className={darkMode ? 'text-white' : ''}>Recipient Name</Label>
+                        <Input
+                          value={giftCardForm.recipientName}
+                          onChange={(e) => setGiftCardForm(prev => ({ ...prev, recipientName: e.target.value }))}
+                          placeholder="John Doe"
+                          className={darkMode ? 'bg-slate-700 border-slate-600' : ''}
+                        />
+                      </div>
+                      <div>
+                        <Label className={darkMode ? 'text-white' : ''}>Recipient Email</Label>
+                        <Input
+                          type="email"
+                          value={giftCardForm.recipientEmail}
+                          onChange={(e) => setGiftCardForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                          placeholder="john@example.com"
+                          className={darkMode ? 'bg-slate-700 border-slate-600' : ''}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Personal Message (Optional)</Label>
+                      <Textarea
+                        value={giftCardForm.message}
+                        onChange={(e) => setGiftCardForm(prev => ({ ...prev, message: e.target.value }))}
+                        placeholder="Happy Birthday! Enjoy shopping!"
+                        rows={2}
+                        className={darkMode ? 'bg-slate-700 border-slate-600' : ''}
+                      />
+                    </div>
+                    
+                    {/* Gift Card Preview */}
+                    <div className="bg-gradient-to-br from-violet-600 to-purple-600 rounded-xl p-6 text-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Crown className="w-6 h-6" />
+                          <span className="font-bold">StyleHub</span>
+                        </div>
+                        <span className="text-sm">Gift Card</span>
+                      </div>
+                      <div className="text-3xl font-bold mb-4">${giftCardForm.amount}</div>
+                      <p className="text-sm text-purple-200">{giftCardForm.message || 'Your personal message will appear here'}</p>
+                    </div>
+
+                    <Button className="w-full bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => toast.success('Gift card purchased successfully!')}>
+                      <Gift className="w-4 h-4 mr-2" /> Purchase Gift Card
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Redeem Gift Card */}
+                <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                  <CardHeader>
+                    <CardTitle className={darkMode ? 'text-white' : ''}>Redeem Gift Card</CardTitle>
+                    <CardDescription>Enter your gift card code to add balance</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Gift Card Code</Label>
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          placeholder="XXXX-XXXX-XXXX"
+                          className={`font-mono text-lg ${darkMode ? 'bg-slate-700 border-slate-600' : ''}`}
+                        />
+                        <Button className="bg-gradient-to-r from-violet-600 to-purple-600">Redeem</Button>
+                      </div>
+                    </div>
+                    <div className={`p-4 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
+                      <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Gift card balance will be added to your account and can be used during checkout.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Purchased Gift Cards */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>Your Gift Cards</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-center py-8 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <Gift className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p>No gift cards yet</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* REFERRALS VIEW */}
+          {currentView === 'referrals' && (
+            <motion.div key="referrals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                <UserPlus className="w-6 h-6 inline mr-2 text-green-500" />
+                Referral Program
+              </h2>
+
+              {/* Referral Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Referred', value: referralStats?.total || 0, icon: Users, color: 'from-blue-500 to-cyan-500' },
+                  { label: 'Completed', value: referralStats?.completed || 0, icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
+                  { label: 'Earned', value: `$${referralStats?.earned || 0}`, icon: DollarSign, color: 'from-purple-500 to-pink-500' },
+                ].map((stat, i) => (
+                  <Card key={i} className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`text-2xl font-bold ${darkMode ? 'text-white' : ''}`}>{stat.value}</p>
+                          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{stat.label}</p>
+                        </div>
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
+                          <stat.icon className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Referral Code */}
+              <Card className={`${darkMode ? 'bg-slate-800 border-slate-700' : ''} border-2 border-dashed border-purple-300`}>
+                <CardContent className="p-8 text-center">
+                  <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Your Referral Code</h3>
+                  <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-4`}>Share this code with friends and earn $10 for each successful referral!</p>
+                  <div className="flex items-center justify-center gap-4">
+                    <div className={`px-6 py-3 rounded-lg font-mono text-xl ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                      {referralCode || 'STYLE-' + (user?.id?.slice(0, 6).toUpperCase() || 'XXXXXX')}
+                    </div>
+                    <Button variant="outline" className={darkMode ? 'border-slate-600' : ''} onClick={() => { navigator.clipboard.writeText(referralCode || 'STYLE-' + (user?.id?.slice(0, 6).toUpperCase() || 'XXXXXX')); toast.success('Copied to clipboard!') }}>
+                      <Copy className="w-4 h-4 mr-2" /> Copy
+                    </Button>
+                  </div>
+                  <div className="flex justify-center gap-4 mt-6">
+                    <Button variant="outline" className={darkMode ? 'border-slate-600' : ''}>
+                      <Link2 className="w-4 h-4 mr-2" /> Copy Link
+                    </Button>
+                    <Button className="bg-gradient-to-r from-violet-600 to-purple-600">
+                      <Share2 className="w-4 h-4 mr-2" /> Share
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* How It Works */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>How It Works</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {[
+                      { step: 1, title: 'Share Your Code', desc: 'Send your unique referral code to friends' },
+                      { step: 2, title: 'Friend Signs Up', desc: 'They create an account using your code' },
+                      { step: 3, title: 'Both Get $10', desc: 'You both receive $10 credit after first purchase' },
+                    ].map((item) => (
+                      <div key={item.step} className="text-center">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 text-white text-xl font-bold flex items-center justify-center mx-auto mb-3">
+                          {item.step}
+                        </div>
+                        <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} mb-1`}>{item.title}</h4>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* PRICE ALERTS VIEW */}
+          {currentView === 'price-alerts' && (
+            <motion.div key="price-alerts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <Bell className="w-6 h-6 inline mr-2 text-yellow-500" />
+                  Price Alerts
+                </h2>
+                {priceAlerts.length > 0 && (
+                  <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => setCurrentView('shop')}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Alert
+                  </Button>
+                )}
+              </div>
+
+              {priceAlerts.length === 0 ? (
+                <Card className={`text-center py-12 ${darkMode ? 'bg-slate-800 border-slate-700' : ''}`}>
+                  <CardContent>
+                    <Target className={`w-12 h-12 ${darkMode ? 'text-slate-600' : 'text-slate-300'} mx-auto mb-4`} />
+                    <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>No price alerts yet</h4>
+                    <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-4`}>Get notified when prices drop on products you love</p>
+                    <Button onClick={() => setCurrentView('shop')}>Browse Products</Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {priceAlerts.map((alert) => (
+                    <Card key={alert.id} className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                      <CardContent className="flex items-center gap-4 p-4">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100">
+                          <img src={alert.product?.images?.[0]} alt={alert.product?.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>{alert.product?.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Current: </span>
+                            <span className="font-medium text-purple-600">${alert.product?.price.toFixed(2)}</span>
+                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>| Target: </span>
+                            <span className="font-medium text-green-600">${alert.targetPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={alert.isActive} onCheckedChange={() => togglePriceAlertActive(alert.id)} />
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => removePriceAlert(alert.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ADDRESSES VIEW */}
+          {currentView === 'addresses' && (
+            <motion.div key="addresses" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <MapPin className="w-6 h-6 inline mr-2 text-blue-500" />
+                  My Addresses
+                </h2>
+                <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => setAddressForm({ name: '', phone: '', address: '', city: '', state: '', country: '', postalCode: '', addressType: 'shipping' })}>
+                  <Plus className="w-4 h-4 mr-2" /> Add Address
+                </Button>
+              </div>
+
+              {/* Add/Edit Address Form */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>Add New Address</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Full Name</Label>
+                      <Input value={addressForm.name} onChange={(e) => setAddressForm(prev => ({ ...prev, name: e.target.value }))} placeholder="John Doe" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Phone</Label>
+                      <Input value={addressForm.phone} onChange={(e) => setAddressForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="+1 234 567 890" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className={darkMode ? 'text-white' : ''}>Address</Label>
+                    <Input value={addressForm.address} onChange={(e) => setAddressForm(prev => ({ ...prev, address: e.target.value }))} placeholder="123 Main St, Apt 4B" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>City</Label>
+                      <Input value={addressForm.city} onChange={(e) => setAddressForm(prev => ({ ...prev, city: e.target.value }))} placeholder="New York" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>State</Label>
+                      <Input value={addressForm.state} onChange={(e) => setAddressForm(prev => ({ ...prev, state: e.target.value }))} placeholder="NY" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Postal Code</Label>
+                      <Input value={addressForm.postalCode} onChange={(e) => setAddressForm(prev => ({ ...prev, postalCode: e.target.value }))} placeholder="10001" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Country</Label>
+                      <Input value={addressForm.country} onChange={(e) => setAddressForm(prev => ({ ...prev, country: e.target.value }))} placeholder="United States" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Address Type</Label>
+                      <Select value={addressForm.addressType} onValueChange={(v: 'shipping' | 'billing') => setAddressForm(prev => ({ ...prev, addressType: v }))}>
+                        <SelectTrigger className={darkMode ? 'bg-slate-700 border-slate-600' : ''}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="shipping">Shipping</SelectItem>
+                          <SelectItem value="billing">Billing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button className="bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => {
+                    addAddress({ id: Date.now().toString(), ...addressForm, userId: user?.id || '', isDefault: addresses.length === 0, createdAt: new Date().toISOString() })
+                    toast.success('Address saved!')
+                  }}>
+                    <Save className="w-4 h-4 mr-2" /> Save Address
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Saved Addresses */}
+              {addresses.length === 0 ? (
+                <Card className={`text-center py-12 ${darkMode ? 'bg-slate-800 border-slate-700' : ''}`}>
+                  <CardContent>
+                    <MapPin className={`w-12 h-12 ${darkMode ? 'text-slate-600' : 'text-slate-300'} mx-auto mb-4`} />
+                    <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>No saved addresses</h4>
+                    <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Add an address for faster checkout</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {addresses.map((addr) => (
+                    <Card key={addr.id} className={`${darkMode ? 'bg-slate-800 border-slate-700' : ''} ${addr.isDefault ? 'border-2 border-purple-500' : ''}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={addr.addressType === 'shipping' ? 'default' : 'secondary'}>{addr.addressType}</Badge>
+                            {addr.isDefault && <Badge className="bg-purple-100 text-purple-700">Default</Badge>}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setDefaultAddress(addr.id)}>
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="w-8 h-8 text-red-500" onClick={() => { removeAddress(addr.id); toast.success('Address removed') }}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>{addr.name}</h4>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{addr.phone}</p>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{addr.address}</p>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{addr.city}, {addr.state} {addr.postalCode}</p>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{addr.country}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* BRANDS VIEW */}
+          {currentView === 'brands' && (
+            <motion.div key="brands" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Shop by Brand</h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Discover products from your favorite brands</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[
+                  { name: 'Nike', logo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200', products: 234 },
+                  { name: 'Adidas', logo: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=200', products: 189 },
+                  { name: 'Gucci', logo: 'https://images.unsplash.com/photo-1608541737042-87a12275d313?w=200', products: 156 },
+                  { name: 'Prada', logo: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?w=200', products: 98 },
+                  { name: 'Zara', logo: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200', products: 342 },
+                  { name: 'H&M', logo: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200', products: 567 },
+                  { name: 'Levis', logo: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=200', products: 234 },
+                  { name: 'Ralph Lauren', logo: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=200', products: 145 },
+                ].map((brand, i) => (
+                  <motion.div
+                    key={brand.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={{ y: -5 }}
+                    className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all cursor-pointer`}
+                    onClick={() => { setSelectedCategory('all'); setCurrentView('shop') }}
+                  >
+                    <div className="aspect-square relative overflow-hidden">
+                      <img src={brand.logo} alt={brand.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-4 left-4 text-white">
+                        <h3 className="font-bold text-lg">{brand.name}</h3>
+                        <p className="text-sm text-white/80">{brand.products} products</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* COLLECTIONS VIEW */}
+          {currentView === 'collections' && (
+            <motion.div key="collections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Curated Collections</h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Hand-picked selections for every style</p>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { name: 'Summer Essentials', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400', count: 45, desc: 'Beat the heat in style' },
+                  { name: 'Streetwear Picks', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400', count: 89, desc: 'Urban fashion favorites' },
+                  { name: 'Minimalist Wardrobe', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400', count: 34, desc: 'Less is more' },
+                  { name: 'Athleisure Edit', image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400', count: 67, desc: 'Gym to street style' },
+                  { name: 'Vintage Finds', image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400', count: 23, desc: 'Retro & classic pieces' },
+                  { name: 'Designer Luxe', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400', count: 56, desc: 'Premium luxury items' },
+                ].map((collection, i) => (
+                  <motion.div
+                    key={collection.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    whileHover={{ y: -5 }}
+                    className="group cursor-pointer"
+                  >
+                    <div className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all`}>
+                      <div className="aspect-[4/3] relative overflow-hidden">
+                        <img src={collection.image} alt={collection.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-4 left-4 text-white">
+                          <Badge className="mb-2">{collection.count} products</Badge>
+                          <h3 className="font-bold text-xl">{collection.name}</h3>
+                          <p className="text-sm text-white/80">{collection.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* DEALS VIEW */}
+          {currentView === 'deals' && (
+            <motion.div key="deals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <Percent className="w-8 h-8 inline mr-2 text-red-500" />
+                    Today's Deals
+                  </h2>
+                  <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Limited time offers and exclusive discounts</p>
+                </div>
+              </div>
+
+              {/* Flash Sales */}
+              <section>
+                <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-4 flex items-center gap-2`}>
+                  <Zap className="w-5 h-5 text-yellow-500" /> Flash Sales
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {products.filter(p => p.comparePrice).slice(0, 4).map((product) => (
+                    <motion.div
+                      key={product.id}
+                      whileHover={{ y: -5 }}
+                      className={`${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-xl overflow-hidden shadow-lg cursor-pointer`}
+                      onClick={() => { setSelectedProduct(product); setShowProductModal(true) }}
+                    >
+                      <div className="relative aspect-square">
+                        <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+                        <Badge className="absolute top-3 left-3 bg-red-500 text-white">
+                          -{getDiscountPercentage(product.price, product.comparePrice)}%
+                        </Badge>
+                      </div>
+                      <div className="p-4">
+                        <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} line-clamp-1`}>{product.name}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="font-bold text-lg text-red-500">${product.price.toFixed(2)}</span>
+                          <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'} line-through`}>${product.comparePrice?.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Coupon Codes */}
+              <section>
+                <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-4 flex items-center gap-2`}>
+                  <Ticket className="w-5 h-5 text-purple-500" /> Active Coupons
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {coupons.length > 0 ? coupons.map((coupon) => (
+                    <Card key={coupon.id} className={`${darkMode ? 'bg-slate-800 border-slate-700' : ''} border-2 border-dashed border-purple-300`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono font-bold text-xl text-purple-600">{coupon.code}</span>
+                          <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(coupon.code); toast.success('Copied!') }}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>{coupon.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge className="bg-purple-100 text-purple-700">
+                            {coupon.type === 'percentage' ? `${coupon.value}% off` : `$${coupon.value} off`}
+                          </Badge>
+                          {coupon.minPurchase && <Badge variant="outline" className={darkMode ? 'border-slate-600' : ''}>Min ${coupon.minPurchase}</Badge>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )) : (
+                    <Card className={`text-center py-8 ${darkMode ? 'bg-slate-800 border-slate-700' : ''} col-span-3`}>
+                      <CardContent>
+                        <Ticket className={`w-12 h-12 ${darkMode ? 'text-slate-600' : 'text-slate-300'} mx-auto mb-4`} />
+                        <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No active coupons at the moment</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {/* NEW ARRIVALS VIEW */}
+          {currentView === 'new-arrivals' && (
+            <motion.div key="new-arrivals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>
+                  <Sparkles className="w-8 h-8 inline mr-2 text-purple-500" />
+                  New Arrivals
+                </h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Fresh styles added in the last 30 days</p>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                {products.slice(0, 12).map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={{ y: -5 }}
+                    className="group cursor-pointer"
+                    onClick={() => { setSelectedProduct(product); setShowProductModal(true) }}
+                  >
+                    <div className={`relative aspect-square rounded-2xl overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-slate-100'} mb-3`}>
+                      <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <Badge className="absolute top-3 left-3 bg-purple-500 text-white">NEW</Badge>
+                    </div>
+                    <div>
+                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>{product.brand}</p>
+                      <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} line-clamp-1`}>{product.name}</h3>
+                      <span className="font-bold text-lg text-purple-600">${product.price.toFixed(2)}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* BEST SELLERS VIEW */}
+          {currentView === 'best-sellers' && (
+            <motion.div key="best-sellers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>
+                  <Flame className="w-8 h-8 inline mr-2 text-orange-500" />
+                  Best Sellers
+                </h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Top trending products loved by our customers</p>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                {products.filter(p => p.soldCount && p.soldCount > 0).sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 12).map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={{ y: -5 }}
+                    className="group cursor-pointer"
+                    onClick={() => { setSelectedProduct(product); setShowProductModal(true) }}
+                  >
+                    <div className={`relative aspect-square rounded-2xl overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-slate-100'} mb-3`}>
+                      <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <Badge className="absolute top-3 left-3 bg-orange-500 text-white">#{i + 1}</Badge>
+                      {product.soldCount && product.soldCount > 50 && (
+                        <Badge className="absolute top-3 right-3 bg-red-500 text-white">🔥 Hot</Badge>
+                      )}
+                    </div>
+                    <div>
+                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'} mb-1`}>{product.brand}</p>
+                      <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} line-clamp-1`}>{product.name}</h3>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="font-bold text-lg text-purple-600">${product.price.toFixed(2)}</span>
+                        <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{product.soldCount} sold</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* FLASH SALE VIEW */}
+          {currentView === 'flash-sale' && (
+            <motion.div key="flash-sale" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl p-8 text-white text-center">
+                <Zap className="w-16 h-16 mx-auto mb-4" />
+                <h2 className="text-4xl font-bold mb-2">⚡ Flash Sale!</h2>
+                <p className="text-xl text-orange-100 mb-6">Up to 70% off - Limited time only!</p>
+                
+                {/* Countdown Timer */}
+                <div className="flex justify-center gap-4 mb-6">
+                  {[
+                    { value: '12', label: 'Hours' },
+                    { value: '34', label: 'Minutes' },
+                    { value: '56', label: 'Seconds' },
+                  ].map((time, i) => (
+                    <div key={i} className="bg-white/20 backdrop-blur-sm rounded-xl p-4 min-w-[80px]">
+                      <div className="text-3xl font-bold">{time.value}</div>
+                      <div className="text-sm text-orange-100">{time.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 rounded-full px-8">
+                  Shop All Flash Deals <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
+
+              {/* Flash Sale Products */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                {products.filter(p => p.comparePrice).slice(0, 8).map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={{ y: -5 }}
+                    className="group cursor-pointer"
+                    onClick={() => { setSelectedProduct(product); setShowProductModal(true) }}
+                  >
+                    <div className={`relative aspect-square rounded-2xl overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-slate-100'} mb-3`}>
+                      <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <Badge className="absolute top-3 left-3 bg-red-500 text-white text-sm">
+                        -{getDiscountPercentage(product.price, product.comparePrice)}%
+                      </Badge>
+                      {/* Progress bar */}
+                      <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50">
+                        <div className="text-white text-xs text-center mb-1">60% claimed</div>
+                        <div className="h-1 bg-white/30 rounded-full overflow-hidden">
+                          <div className="h-full bg-white w-3/5 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} line-clamp-1`}>{product.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-bold text-xl text-red-500">${product.price.toFixed(2)}</span>
+                        <span className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'} line-through`}>${product.comparePrice?.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* SIZE GUIDE VIEW */}
+          {currentView === 'size-guide' && (
+            <motion.div key="size-guide" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>
+                  <Ruler className="w-8 h-8 inline mr-2 text-blue-500" />
+                  Size Guide
+                </h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Find your perfect fit with our comprehensive size charts</p>
+              </div>
+
+              {/* Category Selector */}
+              <div className="flex justify-center gap-2">
+                {['clothes', 'shoes', 'accessories'].map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={selectedSizeCategory === cat ? 'default' : 'outline'}
+                    className={selectedSizeCategory === cat ? 'bg-purple-600' : darkMode ? 'border-slate-600' : ''}
+                    onClick={() => setSelectedSizeCategory(cat)}
+                  >
+                    {cat === 'clothes' ? '👕 Clothing' : cat === 'shoes' ? '👟 Shoes' : '👜 Accessories'}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Size Chart */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>
+                    {selectedSizeCategory === 'clothes' ? 'Clothing Size Chart' : selectedSizeCategory === 'shoes' ? 'Shoe Size Chart' : 'Accessories Size Chart'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className={darkMode ? 'bg-slate-700' : 'bg-slate-100'}>
+                          <th className={`p-3 text-left ${darkMode ? 'text-white' : ''}`}>Size</th>
+                          <th className={`p-3 text-left ${darkMode ? 'text-white' : ''}`}>Chest (in)</th>
+                          <th className={`p-3 text-left ${darkMode ? 'text-white' : ''}`}>Waist (in)</th>
+                          <th className={`p-3 text-left ${darkMode ? 'text-white' : ''}`}>Hips (in)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { size: 'XS', chest: '32-34', waist: '26-28', hips: '34-36' },
+                          { size: 'S', chest: '34-36', waist: '28-30', hips: '36-38' },
+                          { size: 'M', chest: '38-40', waist: '32-34', hips: '40-42' },
+                          { size: 'L', chest: '42-44', waist: '36-38', hips: '44-46' },
+                          { size: 'XL', chest: '46-48', waist: '40-42', hips: '48-50' },
+                          { size: 'XXL', chest: '50-52', waist: '44-46', hips: '52-54' },
+                        ].map((row, i) => (
+                          <tr key={i} className={`border-b ${darkMode ? 'border-slate-700' : ''}`}>
+                            <td className={`p-3 font-medium ${darkMode ? 'text-white' : ''}`}>{row.size}</td>
+                            <td className={`p-3 ${darkMode ? 'text-slate-300' : ''}`}>{row.chest}</td>
+                            <td className={`p-3 ${darkMode ? 'text-slate-300' : ''}`}>{row.waist}</td>
+                            <td className={`p-3 ${darkMode ? 'text-slate-300' : ''}`}>{row.hips}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* How to Measure */}
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : ''}>How to Measure</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {[
+                      { title: 'Chest', desc: 'Measure around the fullest part of your chest, keeping the tape horizontal.' },
+                      { title: 'Waist', desc: 'Measure around your natural waistline, keeping the tape comfortably loose.' },
+                      { title: 'Hips', desc: 'Measure around the fullest part of your hips, keeping the tape horizontal.' },
+                    ].map((item, i) => (
+                      <div key={i} className="text-center">
+                        <div className={`w-12 h-12 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-slate-100'} flex items-center justify-center mx-auto mb-3`}>
+                          <Ruler className={`w-6 h-6 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+                        </div>
+                        <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'} mb-1`}>{item.title}</h4>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* CONTACT VIEW */}
+          {currentView === 'contact' && (
+            <motion.div key="contact" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Contact Us</h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>We'd love to hear from you. Get in touch with our team.</p>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Contact Form */}
+                <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                  <CardHeader>
+                    <CardTitle className={darkMode ? 'text-white' : ''}>Send us a Message</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className={darkMode ? 'text-white' : ''}>Name</Label>
+                        <Input value={contactForm.name} onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Your name" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                      </div>
+                      <div>
+                        <Label className={darkMode ? 'text-white' : ''}>Email</Label>
+                        <Input type="email" value={contactForm.email} onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))} placeholder="your@email.com" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Subject</Label>
+                      <Input value={contactForm.subject} onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))} placeholder="How can we help?" className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <div>
+                      <Label className={darkMode ? 'text-white' : ''}>Message</Label>
+                      <Textarea value={contactForm.message} onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))} placeholder="Your message..." rows={5} className={darkMode ? 'bg-slate-700 border-slate-600' : ''} />
+                    </div>
+                    <Button className="w-full bg-gradient-to-r from-violet-600 to-purple-600" onClick={() => toast.success('Message sent! We\'ll get back to you soon.')}>
+                      <Send className="w-4 h-4 mr-2" /> Send Message
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Contact Info */}
+                <div className="space-y-6">
+                  <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
+                          <Mail className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>Email</h4>
+                          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>support@stylehub.com</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                          <Phone className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>Phone</h4>
+                          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>+1 (800) 123-4567</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                          <MapPin className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h4 className={`font-medium ${darkMode ? 'text-white' : 'text-slate-900'}`}>Address</h4>
+                          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>123 Fashion Street, NY 10001</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Map Placeholder */}
+                  <Card className={`${darkMode ? 'bg-slate-800 border-slate-700' : ''} overflow-hidden`}>
+                    <div className="aspect-video bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
+                      <MapPin className={`w-12 h-12 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+                    </div>
+                  </Card>
+
+                  {/* Social Links */}
+                  <div className="flex justify-center gap-4">
+                    {[Instagram, Twitter, Facebook, Youtube].map((Icon, i) => (
+                      <Button key={i} variant="outline" size="icon" className={`rounded-full ${darkMode ? 'border-slate-600' : ''}`}>
+                        <Icon className="w-5 h-5" />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* PRIVACY POLICY VIEW */}
+          {currentView === 'privacy' && (
+            <motion.div key="privacy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Privacy Policy</h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Last updated: {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardContent className="p-8 prose prose-slate dark:prose-invert max-w-none">
+                  <div className="space-y-6">
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>1. Information We Collect</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>We collect information you provide directly to us, including name, email address, shipping address, and payment information when you make a purchase.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>2. How We Use Your Information</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>We use your information to process orders, communicate with you, improve our services, and send promotional materials (with your consent).</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>3. Information Sharing</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>We do not sell your personal information. We may share your information with trusted third parties who assist us in operating our platform.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>4. Data Security</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>We implement industry-standard security measures to protect your personal information from unauthorized access or disclosure.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>5. Your Rights</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>You have the right to access, correct, or delete your personal information. Contact us at privacy@stylehub.com for assistance.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>6. Cookies</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. You can manage cookie preferences in your browser settings.</p>
+                    </section>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* TERMS OF SERVICE VIEW */}
+          {currentView === 'terms' && (
+            <motion.div key="terms" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              <div className="text-center">
+                <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-2`}>Terms of Service</h2>
+                <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Last updated: {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <Card className={darkMode ? 'bg-slate-800 border-slate-700' : ''}>
+                <CardContent className="p-8 prose prose-slate dark:prose-invert max-w-none">
+                  <div className="space-y-6">
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>1. Acceptance of Terms</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>By accessing and using StyleHub, you agree to be bound by these Terms of Service and all applicable laws and regulations.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>2. User Accounts</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>3. Buying & Selling</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>Sellers must accurately describe products and fulfill orders promptly. Buyers agree to pay for items purchased and provide accurate shipping information.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>4. Prohibited Activities</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>Users may not list counterfeit items, engage in fraud, harass other users, or violate any laws through our platform.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>5. Fees & Payments</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>StyleHub charges a commission on each sale. All fees are clearly disclosed before you complete any transaction.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>6. Returns & Refunds</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>Our return policy allows returns within 30 days of delivery. Refunds are processed according to our refund policy.</p>
+                    </section>
+                    <section>
+                      <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'} mb-3`}>7. Limitation of Liability</h3>
+                      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>StyleHub is not liable for any indirect, incidental, or consequential damages arising from your use of our platform.</p>
+                    </section>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -2080,7 +3351,7 @@ export default function Marketplace() {
       {/* Footer */}
       <footer className={`${darkMode ? 'bg-slate-900' : 'bg-slate-900'} text-white mt-16`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-5 gap-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
@@ -2110,33 +3381,46 @@ export default function Marketplace() {
             <div>
               <h4 className="font-semibold mb-4">Shop</h4>
               <ul className="space-y-2 text-slate-400">
-                <li className="hover:text-white cursor-pointer">Shoes</li>
-                <li className="hover:text-white cursor-pointer">Clothing</li>
-                <li className="hover:text-white cursor-pointer">Accessories</li>
-                <li className="hover:text-white cursor-pointer">New Arrivals</li>
-                <li className="hover:text-white cursor-pointer">Flash Sales</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => { setSelectedCategory('shoes'); setCurrentView('shop') }}>Shoes</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => { setSelectedCategory('clothes'); setCurrentView('shop') }}>Clothing</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => { setSelectedCategory('accessories'); setCurrentView('shop') }}>Accessories</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('new-arrivals')}>New Arrivals</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('best-sellers')}>Best Sellers</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('deals')}>Deals</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('flash-sale')}>Flash Sales</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Discover</h4>
+              <ul className="space-y-2 text-slate-400">
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('brands')}>Brands</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('collections')}>Collections</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('size-guide')}>Size Guide</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('compare')}>Compare Products</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('blog')}>Blog</li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-slate-400">
-                <li className="hover:text-white cursor-pointer">Help Center</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('help')}>Help Center</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('contact')}>Contact Us</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('returns')}>Returns & Refunds</li>
                 <li className="hover:text-white cursor-pointer">Buyer Protection</li>
-                <li className="hover:text-white cursor-pointer">Returns & Refunds</li>
-                <li className="hover:text-white cursor-pointer">Contact Us</li>
-                <li className="hover:text-white cursor-pointer">FAQ</li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Sell on StyleHub</h4>
+              <h4 className="font-semibold mb-4">Account</h4>
               <ul className="space-y-2 text-slate-400">
-                <li className="hover:text-white cursor-pointer">Start Selling</li>
-                <li className="hover:text-white cursor-pointer">Seller Guidelines</li>
-                <li className="hover:text-white cursor-pointer">Fees & Pricing</li>
-                <li className="hover:text-white cursor-pointer">Success Stories</li>
-                <li className="hover:text-white cursor-pointer">Seller Dashboard</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('addresses')}>My Addresses</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('wishlist')}>Wishlist</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('orders')}>Order History</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('price-alerts')}>Price Alerts</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('giftcards')}>Gift Cards</li>
+                <li className="hover:text-white cursor-pointer" onClick={() => setCurrentView('referrals')}>Referral Program</li>
               </ul>
             </div>
           </div>
@@ -2146,8 +3430,8 @@ export default function Marketplace() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-sm">© {new Date().getFullYear()} StyleHub. All rights reserved.</p>
             <div className="flex gap-6 text-slate-400 text-sm">
-              <span className="hover:text-white cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-white cursor-pointer">Terms of Service</span>
+              <span className="hover:text-white cursor-pointer" onClick={() => setCurrentView('privacy')}>Privacy Policy</span>
+              <span className="hover:text-white cursor-pointer" onClick={() => setCurrentView('terms')}>Terms of Service</span>
               <span className="hover:text-white cursor-pointer">Cookie Policy</span>
             </div>
           </div>

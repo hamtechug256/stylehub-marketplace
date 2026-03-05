@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from '@/lib/db'
 
 function simpleHash(str: string): string {
   let hash = 0
@@ -154,11 +152,321 @@ const coupons = [
   { code: 'SAVE25', type: 'fixed', value: 25, minPurchase: 150, description: 'Save $25 on orders over $150', startDate: new Date(), endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) },
 ]
 
+// Help Categories
+const helpCategories = [
+  { name: 'Getting Started', slug: 'getting-started', icon: 'rocket', order: 1 },
+  { name: 'Orders & Shipping', slug: 'orders-shipping', icon: 'package', order: 2 },
+  { name: 'Returns & Refunds', slug: 'returns-refunds', icon: 'refresh-cw', order: 3 },
+  { name: 'Payments', slug: 'payments', icon: 'credit-card', order: 4 },
+  { name: 'Account & Profile', slug: 'account-profile', icon: 'user', order: 5 },
+  { name: 'Selling on StyleHub', slug: 'selling', icon: 'store', order: 6 },
+]
+
+// Help Articles
+const helpArticles = [
+  {
+    title: 'How to Create an Account',
+    slug: 'how-to-create-account',
+    category: 'Getting Started',
+    content: `<p>Creating an account on StyleHub is quick and easy:</p>
+    <ol>
+      <li>Click the "Sign Up" button in the top right corner</li>
+      <li>Enter your email address and create a password</li>
+      <li>Verify your email address through the confirmation link</li>
+      <li>Complete your profile with your name and preferences</li>
+    </ol>
+    <p>Once your account is created, you can start shopping immediately!</p>`,
+    order: 1
+  },
+  {
+    title: 'Placing Your First Order',
+    slug: 'placing-first-order',
+    category: 'Getting Started',
+    content: `<p>Ready to make your first purchase? Here's how:</p>
+    <ol>
+      <li>Browse products and add items to your cart</li>
+      <li>Review your cart and proceed to checkout</li>
+      <li>Enter your shipping address and select a shipping method</li>
+      <li>Choose your payment method and complete the purchase</li>
+    </ol>
+    <p>You'll receive an order confirmation email with tracking information once your order ships.</p>`,
+    order: 2
+  },
+  {
+    title: 'Tracking Your Order',
+    slug: 'tracking-order',
+    category: 'Orders & Shipping',
+    content: `<p>You can track your order in several ways:</p>
+    <ul>
+      <li>Check your email for shipping confirmation with tracking number</li>
+      <li>Log into your account and view "My Orders"</li>
+      <li>Use the carrier's website with your tracking number</li>
+    </ul>
+    <p>Most orders are delivered within 3-7 business days depending on your location.</p>`,
+    order: 1
+  },
+  {
+    title: 'Shipping Options & Costs',
+    slug: 'shipping-options-costs',
+    category: 'Orders & Shipping',
+    content: `<p>We offer several shipping options:</p>
+    <ul>
+      <li><strong>Standard Shipping:</strong> 5-7 business days - $4.99</li>
+      <li><strong>Express Shipping:</strong> 2-3 business days - $9.99</li>
+      <li><strong>Next Day Delivery:</strong> 1 business day - $19.99</li>
+      <li><strong>Free Shipping:</strong> Available on orders over $50</li>
+    </ul>`,
+    order: 2
+  },
+  {
+    title: 'Return Policy',
+    slug: 'return-policy',
+    category: 'Returns & Refunds',
+    content: `<p>We want you to love your purchase! Our return policy:</p>
+    <ul>
+      <li>Items can be returned within 30 days of delivery</li>
+      <li>Items must be unworn, unwashed, and with original tags</li>
+      <li>Some items (underwear, swimwear) are final sale</li>
+      <li>Return shipping is free for defective items</li>
+    </ul>
+    <p>To initiate a return, go to "My Orders" and click "Request Return".</p>`,
+    order: 1
+  },
+  {
+    title: 'How to Request a Refund',
+    slug: 'request-refund',
+    category: 'Returns & Refunds',
+    content: `<p>To request a refund:</p>
+    <ol>
+      <li>Go to "My Orders" in your account</li>
+      <li>Select the order containing the item you want to return</li>
+      <li>Click "Request Return" and select the reason</li>
+      <li>Choose your preferred refund method</li>
+      <li>Print the return label and ship the item back</li>
+    </ol>
+    <p>Refunds are processed within 5-7 business days after we receive the item.</p>`,
+    order: 2
+  },
+  {
+    title: 'Accepted Payment Methods',
+    slug: 'payment-methods',
+    category: 'Payments',
+    content: `<p>We accept the following payment methods:</p>
+    <ul>
+      <li>Credit/Debit Cards (Visa, Mastercard, American Express)</li>
+      <li>PayPal</li>
+      <li>Apple Pay / Google Pay</li>
+      <li>StyleHub Gift Cards</li>
+      <li>Store Credit</li>
+    </ul>
+    <p>All payments are processed securely using industry-standard encryption.</p>`,
+    order: 1
+  },
+  {
+    title: 'Using Gift Cards',
+    slug: 'using-gift-cards',
+    category: 'Payments',
+    content: `<p>To use a StyleHub gift card:</p>
+    <ol>
+      <li>Add items to your cart and proceed to checkout</li>
+      <li>Enter your gift card code in the "Promo/Gift Code" field</li>
+      <li>The gift card balance will be applied to your order</li>
+      <li>Any remaining balance can be paid with another method</li>
+    </ol>
+    <p>Gift cards never expire and can be used on any purchase.</p>`,
+    order: 2
+  },
+  {
+    title: 'Updating Your Profile',
+    slug: 'updating-profile',
+    category: 'Account & Profile',
+    content: `<p>To update your profile information:</p>
+    <ol>
+      <li>Log into your account</li>
+      <li>Go to "Account Settings"</li>
+      <li>Update your personal information, address, or preferences</li>
+      <li>Click "Save Changes"</li>
+    </ol>
+    <p>You can also manage your notification preferences and privacy settings here.</p>`,
+    order: 1
+  },
+  {
+    title: 'Password Reset',
+    slug: 'password-reset',
+    category: 'Account & Profile',
+    content: `<p>If you forgot your password:</p>
+    <ol>
+      <li>Click "Sign In" and then "Forgot Password"</li>
+      <li>Enter the email address associated with your account</li>
+      <li>Check your email for the reset link</li>
+      <li>Create a new password</li>
+    </ol>
+    <p>For security, the reset link expires after 24 hours.</p>`,
+    order: 2
+  },
+  {
+    title: 'How to Become a Seller',
+    slug: 'become-seller',
+    category: 'Selling on StyleHub',
+    content: `<p>Start selling on StyleHub in 4 steps:</p>
+    <ol>
+      <li>Create an account and select "Become a Seller"</li>
+      <li>Complete your seller profile with store details</li>
+      <li>Set up your payment information for payouts</li>
+      <li>List your first product and start selling!</li>
+    </ol>
+    <p>StyleHub charges a small commission on each sale. There are no listing fees.</p>`,
+    order: 1
+  },
+  {
+    title: 'Seller Best Practices',
+    slug: 'seller-best-practices',
+    category: 'Selling on StyleHub',
+    content: `<p>Tips for successful selling:</p>
+    <ul>
+      <li>Use high-quality photos with good lighting</li>
+      <li>Write detailed, accurate descriptions</li>
+      <li>Price competitively by researching similar items</li>
+      <li>Respond to customer questions promptly</li>
+      <li>Ship orders within 1-2 business days</li>
+      <li>Encourage buyers to leave reviews</li>
+    </ul>`,
+    order: 2
+  },
+]
+
+// Size Guides
+const sizeGuides = [
+  {
+    category: 'shoes',
+    subCategory: 'sneakers',
+    brand: null,
+    guideData: JSON.stringify({
+      title: 'Sneaker Size Guide',
+      sizes: [
+        { us: '6', uk: '5', eu: '38.5', cm: '24' },
+        { us: '6.5', uk: '5.5', eu: '39', cm: '24.5' },
+        { us: '7', uk: '6', eu: '40', cm: '25' },
+        { us: '7.5', uk: '6.5', eu: '40.5', cm: '25.5' },
+        { us: '8', uk: '7', eu: '41', cm: '26' },
+        { us: '8.5', uk: '7.5', eu: '42', cm: '26.5' },
+        { us: '9', uk: '8', eu: '42.5', cm: '27' },
+        { us: '9.5', uk: '8.5', eu: '43', cm: '27.5' },
+        { us: '10', uk: '9', eu: '44', cm: '28' },
+        { us: '10.5', uk: '9.5', eu: '44.5', cm: '28.5' },
+        { us: '11', uk: '10', eu: '45', cm: '29' },
+        { us: '12', uk: '11', eu: '46', cm: '30' },
+      ]
+    }),
+    instructions: 'Measure your foot length in centimeters and compare to the size chart. For the best fit, measure at the end of the day when feet are at their largest.'
+  },
+  {
+    category: 'shoes',
+    subCategory: 'boots',
+    brand: null,
+    guideData: JSON.stringify({
+      title: 'Boot Size Guide',
+      sizes: [
+        { us: '6', uk: '5', eu: '38.5', cm: '24' },
+        { us: '7', uk: '6', eu: '40', cm: '25' },
+        { us: '8', uk: '7', eu: '41', cm: '26' },
+        { us: '9', uk: '8', eu: '42.5', cm: '27' },
+        { us: '10', uk: '9', eu: '44', cm: '28' },
+        { us: '11', uk: '10', eu: '45', cm: '29' },
+        { us: '12', uk: '11', eu: '46', cm: '30' },
+      ]
+    }),
+    instructions: 'Boots typically run true to size. If you plan to wear thick socks, consider going up half a size.'
+  },
+  {
+    category: 'clothes',
+    subCategory: 't-shirts',
+    brand: null,
+    guideData: JSON.stringify({
+      title: 'T-Shirt Size Guide',
+      sizes: [
+        { size: 'XS', chest: '32-34', waist: '26-28', length: '27' },
+        { size: 'S', chest: '35-37', waist: '29-31', length: '28' },
+        { size: 'M', chest: '38-40', waist: '32-34', length: '29' },
+        { size: 'L', chest: '41-43', waist: '35-37', length: '30' },
+        { size: 'XL', chest: '44-46', waist: '38-40', length: '31' },
+        { size: 'XXL', chest: '47-49', waist: '41-43', length: '32' },
+      ]
+    }),
+    instructions: 'Measure around the fullest part of your chest and natural waist. Compare to the chart for your best fit.'
+  },
+  {
+    category: 'clothes',
+    subCategory: 'jeans',
+    brand: null,
+    guideData: JSON.stringify({
+      title: 'Jeans Size Guide',
+      sizes: [
+        { size: '28', waist: '28', hip: '35', inseam: '30' },
+        { size: '30', waist: '30', hip: '37', inseam: '30' },
+        { size: '32', waist: '32', hip: '39', inseam: '32' },
+        { size: '34', waist: '34', hip: '41', inseam: '32' },
+        { size: '36', waist: '36', hip: '43', inseam: '32' },
+        { size: '38', waist: '38', hip: '45', inseam: '34' },
+      ]
+    }),
+    instructions: 'Jeans sizes are typically listed as waist x inseam (e.g., 32x32). Measure your natural waist and inseam for accurate sizing.'
+  },
+  {
+    category: 'clothes',
+    subCategory: 'dresses',
+    brand: null,
+    guideData: JSON.stringify({
+      title: 'Dress Size Guide',
+      sizes: [
+        { size: 'XS', bust: '32-33', waist: '24-25', hip: '34-35' },
+        { size: 'S', bust: '34-35', waist: '26-27', hip: '36-37' },
+        { size: 'M', bust: '36-37', waist: '28-29', hip: '38-39' },
+        { size: 'L', bust: '38-40', waist: '30-32', hip: '40-42' },
+        { size: 'XL', bust: '41-43', waist: '33-35', hip: '43-45' },
+      ]
+    }),
+    instructions: 'Measure bust at fullest part, waist at natural waistline, and hips at widest point. If between sizes, size up for comfort.'
+  },
+]
+
+// Brands
+const brands = [
+  { name: 'Nike', slug: 'nike', description: 'Just Do It. The world\'s leading athletic brand.', logo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200' },
+  { name: 'Adidas', slug: 'adidas', description: 'Impossible is Nothing. German engineering meets sport.', logo: 'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=200' },
+  { name: 'Jordan', slug: 'jordan', description: 'The legendary brand born from basketball greatness.', logo: 'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=200' },
+  { name: 'Levi\'s', slug: 'levis', description: 'The original blue jean since 1873.', logo: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200' },
+  { name: 'Ray-Ban', slug: 'ray-ban', description: 'Never Hide. Iconic eyewear since 1937.', logo: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200' },
+  { name: 'Dr. Martens', slug: 'dr-martens', description: 'Rebellious self-expression since 1947.', logo: 'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=200' },
+  { name: 'Converse', slug: 'converse', description: 'The iconic Chuck Taylor All Star.', logo: 'https://images.unsplash.com/photo-1607522370275-f14206abe5d3?w=200' },
+  { name: 'New Balance', slug: 'new-balance', description: 'Fearlessly Independent Since 1906.', logo: 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=200' },
+  { name: 'Timberland', slug: 'timberland', description: 'Nature needs heroes. Premium outdoor footwear.', logo: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=200' },
+  { name: 'Under Armour', slug: 'under-armour', description: 'The only way is through. Performance apparel.', logo: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=200' },
+]
+
+// Collections
+const collections = [
+  { name: 'Summer Essentials', slug: 'summer-essentials', description: 'Beat the heat with our curated summer collection', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800' },
+  { name: 'Streetwear Icons', slug: 'streetwear-icons', description: 'Urban style staples for the fashion-forward', image: 'https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=800' },
+  { name: 'Office Ready', slug: 'office-ready', description: 'Professional looks that mean business', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800' },
+  { name: 'Weekend Warriors', slug: 'weekend-warriors', description: 'Casual comfort for your days off', image: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=800' },
+  { name: 'Athletic Performance', slug: 'athletic-performance', description: 'Gear up for your best workout', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800' },
+  { name: 'Sustainable Fashion', slug: 'sustainable-fashion', description: 'Eco-conscious choices for a better tomorrow', image: 'https://images.unsplash.com/photo-1523199455310-87b16c0eed11?w=800' },
+]
+
+// Announcements
+const announcements = [
+  { title: 'Free Shipping on Orders Over $50!', message: 'For a limited time, enjoy free standard shipping on all orders over $50. No code needed!', type: 'promotion', isActive: true },
+  { title: 'Summer Sale Coming Soon', message: 'Get ready for our biggest sale of the season. Up to 50% off select items starting next week!', type: 'promotion', isActive: true, startDate: new Date(), endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+  { title: 'New Payment Option', message: 'We now accept Apple Pay and Google Pay for faster, more secure checkout.', type: 'info', isActive: true },
+  { title: 'Seller Program Update', message: 'Lower commission rates for new sellers! Start your store today with just 8% commission for your first 3 months.', type: 'success', isActive: true },
+]
+
 export async function POST(request: NextRequest) {
   try {
     // Create demo sellers with more details
     const sellers = await Promise.all([
-      prisma.user.create({
+      db.user.create({
         data: {
           email: 'fashion@stylehub.com',
           password: simpleHash('demo123'),
@@ -177,7 +485,7 @@ export async function POST(request: NextRequest) {
           country: 'USA'
         }
       }),
-      prisma.user.create({
+      db.user.create({
         data: {
           email: 'sneakers@stylehub.com',
           password: simpleHash('demo123'),
@@ -195,7 +503,7 @@ export async function POST(request: NextRequest) {
           country: 'USA'
         }
       }),
-      prisma.user.create({
+      db.user.create({
         data: {
           email: 'luxury@stylehub.com',
           password: simpleHash('demo123'),
@@ -213,7 +521,7 @@ export async function POST(request: NextRequest) {
           country: 'USA'
         }
       }),
-      prisma.user.create({
+      db.user.create({
         data: {
           email: 'vintage@stylehub.com',
           password: simpleHash('demo123'),
@@ -229,7 +537,7 @@ export async function POST(request: NextRequest) {
           country: 'USA'
         }
       }),
-      prisma.user.create({
+      db.user.create({
         data: {
           email: 'admin@stylehub.com',
           password: simpleHash('admin123'),
@@ -243,7 +551,7 @@ export async function POST(request: NextRequest) {
     ])
 
     // Create demo buyer
-    const buyer = await prisma.user.create({
+    const buyer = await db.user.create({
       data: {
         email: 'buyer@stylehub.com',
         password: simpleHash('demo123'),
@@ -285,7 +593,7 @@ export async function POST(request: NextRequest) {
       const images = categoryImages[product.category] || categoryImages.accessories
       const randomImage = images[Math.floor(Math.random() * images.length)]
       
-      await prisma.product.create({
+      await db.product.create({
         data: {
           ...product,
           sellerId: seller.id,
@@ -300,14 +608,14 @@ export async function POST(request: NextRequest) {
 
     // Create coupons
     for (const coupon of coupons) {
-      await prisma.coupon.create({ data: coupon })
+      await db.coupon.create({ data: coupon })
     }
 
     // Create blog posts
     const adminUser = sellers.find(s => s.role === 'ADMIN')
     if (adminUser) {
       for (const post of blogPosts) {
-        await prisma.blog.create({
+        await db.blog.create({
           data: {
             ...post,
             authorId: adminUser.id,
@@ -320,7 +628,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create platform settings
-    await prisma.platformSettings.create({
+    await db.platformSettings.create({
       data: {
         platformName: 'StyleHub',
         platformDesc: 'Your Premium Fashion Marketplace - Discover unique styles from trusted sellers worldwide',
@@ -337,6 +645,89 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Create help categories
+    for (const category of helpCategories) {
+      await db.helpCategory.create({ data: category })
+    }
+
+    // Create help articles
+    for (const article of helpArticles) {
+      await db.helpArticle.create({
+        data: {
+          title: article.title,
+          slug: article.slug,
+          content: article.content,
+          category: article.category,
+          order: article.order,
+          isPublished: true
+        }
+      })
+    }
+
+    // Create size guides
+    for (const guide of sizeGuides) {
+      await db.sizeGuide.create({
+        data: {
+          category: guide.category,
+          subCategory: guide.subCategory,
+          brand: guide.brand,
+          guideData: guide.guideData,
+          instructions: guide.instructions,
+          isActive: true
+        }
+      })
+    }
+
+    // Create brands
+    for (const brand of brands) {
+      await db.brand.create({
+        data: {
+          name: brand.name,
+          slug: brand.slug,
+          description: brand.description,
+          logo: brand.logo,
+          isActive: true
+        }
+      })
+    }
+
+    // Create collections
+    for (const collection of collections) {
+      await db.collection.create({
+        data: {
+          name: collection.name,
+          slug: collection.slug,
+          description: collection.description,
+          image: collection.image,
+          productIds: '[]',
+          isActive: true
+        }
+      })
+    }
+
+    // Create announcements
+    for (const announcement of announcements) {
+      await db.announcement.create({
+        data: announcement
+      })
+    }
+
+    // Create a sample address for the buyer
+    await db.address.create({
+      data: {
+        userId: buyer.id,
+        name: 'Demo Buyer',
+        phone: '+1234567888',
+        address: '123 Fashion Street',
+        city: 'San Francisco',
+        state: 'California',
+        country: 'USA',
+        postalCode: '94102',
+        isDefault: true,
+        addressType: 'shipping'
+      }
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Database seeded successfully!',
@@ -344,7 +735,13 @@ export async function POST(request: NextRequest) {
         sellers: sellers.length,
         products: sampleProducts.length,
         coupons: coupons.length,
-        blogPosts: blogPosts.length
+        blogPosts: blogPosts.length,
+        helpCategories: helpCategories.length,
+        helpArticles: helpArticles.length,
+        sizeGuides: sizeGuides.length,
+        brands: brands.length,
+        collections: collections.length,
+        announcements: announcements.length
       }
     })
   } catch (error) {
