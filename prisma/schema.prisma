@@ -1,8 +1,5 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// E-Commerce Marketplace - Multi-vendor platform with advanced features
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +10,304 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User model - supports Buyer, Seller, and Admin roles
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String        @id @default(cuid())
+  email         String        @unique
+  password      String
+  name          String
+  role          String        @default("BUYER")
+  phone         String?
+  avatar        String?
+  storeName     String?
+  storeDesc     String?
+  storeBanner   String?
+  storeLogo     String?
+  balance       Float         @default(0)
+  loyaltyPoints Int           @default(0)
+  isVerified    Boolean       @default(false)
+  verifiedAt    DateTime?
+  bio           String?
+  website       String?
+  socialLinks   String?       // JSON: {twitter, instagram, facebook}
+  address       String?
+  city          String?
+  country       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  products      Product[]
+  orders        Order[]
+  reviews       Review[]
+  wishlist      Wishlist[]
+  messages      Message[]     @relation("MessageSender")
+  receivedMsgs  Message[]     @relation("MessageReceiver")
+  notifications Notification[]
+  coupons       UserCoupon[]
+  follows       Follow[]      @relation("UserFollows")
+  followers     Follow[]      @relation("UserFollowers")
+  blogs         Blog[]
 }
 
-model Post {
+// Product model - items sold by sellers
+model Product {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String?
+  description    String
+  price          Float
+  comparePrice   Float?
+  images         String        @default("[]")
+  videos         String?       // JSON array of video URLs
+  category       String
+  subCategory    String?
+  brand          String?
+  condition      String        @default("new")
+  stock          Int           @default(1)
+  sellerId       String
+  seller         User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  status         String        @default("active")
+  views          Int           @default(0)
+  featured       Boolean       @default(false)
+  tags           String?       // JSON array of tags
+  variants       String?       // JSON: [{size, color, stock, price, sku}]
+  specifications String?       // JSON: {material, weight, dimensions, etc}
+  seoTitle       String?
+  seoDesc        String?
+  rating         Float         @default(0)
+  reviewCount    Int           @default(0)
+  soldCount      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  orderItems     OrderItem[]
+  reviews        Review[]
+  wishlist       Wishlist[]
+  flashSale      FlashSale?
+}
+
+// Order model - purchases made by buyers
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  buyerId         String
+  buyer           User        @relation(fields: [buyerId], references: [id])
+  items           OrderItem[]
+  totalAmount     Float
+  discount        Float       @default(0)
+  shipping        Float       @default(0)
+  commission      Float
+  sellerEarnings  Float
+  status          String      @default("pending")
+  paymentMethod   String      @default("cash")
+  paymentStatus   String      @default("pending")
+  shippingAddress String?
+  shippingCity    String?
+  shippingCountry String?
+  buyerPhone      String?
+  notes           String?
+  trackingNumber  String?
+  estimatedDelivery DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  couponId        String?
+  coupon          UserCoupon?
+  loyaltyEarned   Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// OrderItem model - individual items in an order
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  quantity   Int
+  price      Float
+  sellerId   String
+  variant    String? // JSON: {size, color}
+}
+
+// Review model - product reviews and ratings
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  orderId     String?
+  rating      Int      // 1-5 stars
+  title       String?
+  comment     String
+  images      String?  // JSON array of image URLs
+  isVerified  Boolean  @default(false)
+  helpful     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Wishlist model - saved products
+model Wishlist {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, productId])
+}
+
+// Message model - buyer-seller communication
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  productId   String?
+  subject     String?
+  message     String
+  attachments String?  // JSON array of file URLs
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// Notification model - user notifications
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // order, message, review, promotion, system
+  title      String
+  message    String
+  link       String?
+  image      String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// Coupon model - discount codes
+model Coupon {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  type         String       // percentage, fixed
+  value        Float
+  minPurchase  Float?
+  maxDiscount  Float?
+  usageLimit   Int?
+  usedCount    Int          @default(0)
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean      @default(true)
+  description  String?
+  userCoupons  UserCoupon[]
+  createdAt    DateTime     @default(now())
+}
+
+// UserCoupon model - coupons claimed by users
+model UserCoupon {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  couponId   String
+  coupon     Coupon    @relation(fields: [couponId], references: [id])
+  isUsed     Boolean   @default(false)
+  usedAt     DateTime?
+  orderId    String?   @unique
+  order      Order?    @relation(fields: [orderId], references: [id])
+  createdAt  DateTime  @default(now())
+  
+  @@unique([userId, couponId])
+}
+
+// FlashSale model - time-limited sales
+model FlashSale {
+  id         String    @id @default(cuid())
+  productId  String   @unique
+  product    Product   @relation(fields: [productId], references: [id])
+  salePrice  Float
+  quantity   Int
+  sold       Int       @default(0)
+  startTime  DateTime
+  endTime    DateTime
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+}
+
+// Follow model - user follows seller
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  
+  @@unique([followerId, followingId])
+}
+
+// Blog model - blog posts
+model Blog {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  category    String?
+  tags        String?  // JSON array
+  status      String   @default("draft") // draft, published
+  views       Int      @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// PlatformSettings - configurable platform settings
+model PlatformSettings {
+  id                 String  @id @default(cuid())
+  platformName       String  @default("StyleHub")
+  platformDesc       String?
+  platformLogo       String?
+  platformBanner     String?
+  commissionRate     Float   @default(0.10)
+  minPayout          Float   @default(50)
+  loyaltyRate        Float   @default(0.01) // 1 point per $ spent
+  pointValue         Float   @default(0.01) // $0.01 per point
+  primaryColor       String  @default("#7c3aed")
+  secondaryColor     String  @default("#ec4899")
+  supportEmail       String?
+  supportPhone       String?
+  socialLinks        String? // JSON
+  seoTitle           String?
+  seoDesc            String?
+  seoKeywords        String?
+  termsOfService     String?
+  privacyPolicy      String?
+}
+
+// ContactMessage - contact form submissions
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Newsletter - email subscriptions
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
