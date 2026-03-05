@@ -600,12 +600,13 @@ model ContactMessage {
 // ==================== HELP CENTER ====================
 
 model HelpCategory {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
-  slug      String   @unique
+  slug      String        @unique
   icon      String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
+  order     Int           @default(0)
+  articles  HelpArticle[]
+  createdAt DateTime      @default(now())
 }
 
 model HelpArticle {

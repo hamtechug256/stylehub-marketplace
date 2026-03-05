@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-// Types
+// ==================== TYPES ====================
+
 export interface User {
   id: string
   email: string
@@ -13,12 +14,14 @@ export interface User {
   storeDesc?: string
   storeBanner?: string
   storeLogo?: string
+  storeSlug?: string
+  isVerified: boolean
   balance: number
   loyaltyPoints: number
-  isVerified: boolean
+  totalSpent: number
+  totalOrders: number
   bio?: string
   website?: string
-  address?: string
   city?: string
   country?: string
   createdAt: string
@@ -29,6 +32,7 @@ export interface Product {
   name: string
   slug?: string
   description: string
+  shortDesc?: string
   price: number
   comparePrice?: number
   images: string[]
@@ -36,34 +40,45 @@ export interface Product {
   category: string
   subCategory?: string
   brand?: string
-  condition: string
-  stock: number
-  sellerId: string
-  seller?: User
-  status: string
-  views: number
-  featured: boolean
   tags?: string[]
-  variants?: ProductVariant[]
-  specifications?: Record<string, string>
+  condition: string
+  material?: string
+  color?: string
+  size?: string
+  gender?: string
+  stock: number
+  lowStockThreshold: number
+  views: number
+  wishlistCount: number
+  soldCount: number
   rating: number
   reviewCount: number
-  soldCount: number
+  status: string
+  featured: boolean
+  isNew: boolean
+  isTrending: boolean
+  isBestSeller: boolean
+  freeShipping: boolean
+  shippingPrice?: number
+  shippingDays?: number
+  sellerId: string
+  seller?: User
   flashSale?: FlashSale
+  priceHistory?: PriceHistory[]
   createdAt: string
 }
 
-export interface ProductVariant {
+export interface PriceHistory {
   id: string
-  size?: string
-  color?: string
-  stock: number
-  price?: number
-  sku?: string
+  productId: string
+  price: number
+  comparePrice?: number
+  recordedAt: string
 }
 
 export interface FlashSale {
   id: string
+  productId: string
   salePrice: number
   quantity: number
   sold: number
@@ -75,30 +90,56 @@ export interface FlashSale {
 export interface CartItem {
   product: Product
   quantity: number
-  variant?: ProductVariant
+  variant?: { size?: string; color?: string }
+  savedForLater?: boolean
+}
+
+export interface WishlistItem {
+  id: string
+  productId: string
+  product?: Product
+  notes?: string
+  createdAt: string
 }
 
 export interface Order {
   id: string
   orderNumber: string
+  invoiceNumber?: string
   buyerId: string
   buyer?: User
   items: OrderItem[]
-  totalAmount: number
+  subtotal: number
   discount: number
   shipping: number
+  tax: number
+  totalAmount: number
   commission: number
   sellerEarnings: number
   status: string
   paymentMethod: string
   paymentStatus: string
+  paymentId?: string
+  paidAt?: string
   shippingAddress?: string
-  buyerPhone?: string
-  notes?: string
+  shippingCity?: string
+  shippingCountry?: string
+  shippingPhone?: string
   trackingNumber?: string
+  trackingUrl?: string
+  carrier?: string
   estimatedDelivery?: string
+  shippedAt?: string
   deliveredAt?: string
+  notes?: string
   loyaltyEarned: number
+  loyaltyUsed: number
+  couponCode?: string
+  couponDiscount: number
+  giftCardCode?: string
+  giftCardDiscount: number
+  cancelledAt?: string
+  cancelReason?: string
   createdAt: string
 }
 
@@ -108,8 +149,10 @@ export interface OrderItem {
   product?: Product
   quantity: number
   price: number
-  sellerId: string
-  variant?: ProductVariant
+  variant?: string
+  status: string
+  shippedAt?: string
+  deliveredAt?: string
 }
 
 export interface Review {
@@ -122,25 +165,12 @@ export interface Review {
   comment: string
   images?: string[]
   isVerified: boolean
+  isFeatured: boolean
   helpful: number
-  createdAt: string
-}
-
-export interface WishlistItem {
-  id: string
-  productId: string
-  product?: Product
-  createdAt: string
-}
-
-export interface Notification {
-  id: string
-  type: string
-  title: string
-  message: string
-  link?: string
-  image?: string
-  isRead: boolean
+  notHelpful: number
+  reply?: string
+  repliedAt?: string
+  status: string
   createdAt: string
 }
 
@@ -151,26 +181,61 @@ export interface Message {
   receiverId: string
   receiver?: User
   productId?: string
+  orderId?: string
   subject?: string
   message: string
   attachments?: string[]
   isRead: boolean
+  readAt?: string
+  createdAt: string
+}
+
+export interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  link?: string
+  image?: string
+  data?: Record<string, any>
+  isRead: boolean
+  readAt?: string
   createdAt: string
 }
 
 export interface Coupon {
   id: string
   code: string
-  type: 'percentage' | 'fixed'
+  type: 'percentage' | 'fixed' | 'free_shipping'
   value: number
   minPurchase?: number
   maxDiscount?: number
   usageLimit?: number
   usedCount: number
+  perUserLimit: number
   startDate: string
   endDate: string
   isActive: boolean
   description?: string
+}
+
+export interface GiftCard {
+  id: string
+  code: string
+  amount: number
+  balance: number
+  currency: string
+  ownerId?: string
+  owner?: User
+  createdById?: string
+  createdBy?: User
+  recipientEmail?: string
+  message?: string
+  isUsed: boolean
+  usedAt?: string
+  expiresAt?: string
+  isActive: boolean
+  createdAt: string
 }
 
 export interface Blog {
@@ -186,104 +251,9 @@ export interface Blog {
   tags?: string[]
   status: 'draft' | 'published'
   views: number
+  likes: number
+  isFeatured: boolean
   publishedAt?: string
-  createdAt: string
-}
-
-// ==================== NEW TYPES ====================
-
-export interface ReturnRequest {
-  id: string
-  orderId: string
-  orderItemId: string
-  userId: string
-  sellerId: string
-  reason: string
-  description?: string
-  images?: string[]
-  status: 'pending' | 'approved' | 'rejected' | 'completed'
-  refundAmount: number
-  refundMethod: string
-  adminNotes?: string
-  createdAt: string
-}
-
-export interface GiftCard {
-  id: string
-  code: string
-  amount: number
-  purchasedBy?: string
-  recipientEmail?: string
-  recipientName?: string
-  message?: string
-  isUsed: boolean
-  usedBy?: string
-  expiresAt?: string
-  isActive: boolean
-  createdAt: string
-}
-
-export interface Referral {
-  id: string
-  referrerId: string
-  referralCode: string
-  referredId?: string
-  status: 'pending' | 'completed' | 'rewarded'
-  rewardAmount: number
-  isRewarded: boolean
-  createdAt: string
-}
-
-export interface PriceAlert {
-  id: string
-  userId: string
-  productId: string
-  product?: Product
-  targetPrice: number
-  isNotified: boolean
-  isActive: boolean
-  createdAt: string
-}
-
-export interface RecentlyViewedItem {
-  id: string
-  productId: string
-  product?: Product
-  viewedAt: string
-}
-
-export interface CompareProduct {
-  id: string
-  productId: string
-  product?: Product
-  addedAt: string
-}
-
-export interface ProductQuestion {
-  id: string
-  productId: string
-  userId: string
-  user?: User
-  question: string
-  answer?: string
-  answeredBy?: string
-  isAnswered: boolean
-  isHelpful: number
-  createdAt: string
-}
-
-export interface Address {
-  id: string
-  userId: string
-  name: string
-  phone: string
-  address: string
-  city: string
-  state?: string
-  country: string
-  postalCode?: string
-  isDefault: boolean
-  addressType: 'shipping' | 'billing'
   createdAt: string
 }
 
@@ -295,40 +265,23 @@ export interface Brand {
   banner?: string
   description?: string
   website?: string
-  isActive: boolean
-  createdAt: string
-}
-
-export interface Collection {
-  id: string
-  name: string
-  slug: string
-  description?: string
-  image?: string
-  productIds: string[]
-  isActive: boolean
-  createdAt: string
-}
-
-export interface SizeGuide {
-  id: string
-  category: string
-  subCategory?: string
-  brand?: string
-  guideData: string
-  instructions?: string
-  isActive: boolean
+  isVerified: boolean
+  isFeatured: boolean
+  productCount: number
+  followerCount: number
 }
 
 export interface HelpArticle {
   id: string
+  categoryId: string
+  category?: HelpCategory
   title: string
   slug: string
   content: string
-  category: string
-  order: number
-  isPublished: boolean
   views: number
+  helpful: number
+  notHelpful: number
+  isFeatured: boolean
   createdAt: string
 }
 
@@ -338,22 +291,102 @@ export interface HelpCategory {
   slug: string
   icon?: string
   order: number
-  isActive: boolean
+  articles?: HelpArticle[]
 }
 
-export interface Announcement {
+export interface Banner {
   id: string
   title: string
-  message: string
-  type: 'info' | 'warning' | 'success' | 'promotion'
+  subtitle?: string
+  image: string
   link?: string
-  isActive: boolean
+  buttonText?: string
+  position: 'hero' | 'sidebar' | 'footer'
   startDate?: string
   endDate?: string
+  isActive: boolean
+  order: number
+}
+
+export interface Collection {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  image?: string
+  productIds: string[]
+  isFeatured: boolean
+}
+
+export interface PriceAlert {
+  id: string
+  userId: string
+  productId: string
+  product?: Product
+  targetPrice: number
+  isNotified: boolean
   createdAt: string
 }
 
-// Auth Store
+export interface RecentlyViewedItem {
+  id: string
+  productId: string
+  product?: Product
+  viewCount: number
+  lastViewed: string
+}
+
+export interface Bundle {
+  id: string
+  name: string
+  description?: string
+  discount: number
+  price: number
+  productIds: string[]
+  products?: Product[]
+  images?: string[]
+  isActive: boolean
+}
+
+export interface SupportTicket {
+  id: string
+  userId: string
+  user?: User
+  orderId?: string
+  subject: string
+  category: string
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  replies: TicketReply[]
+  resolvedAt?: string
+  createdAt: string
+}
+
+export interface TicketReply {
+  id: string
+  ticketId: string
+  userId: string
+  user?: User
+  message: string
+  attachments?: string[]
+  isStaff: boolean
+  createdAt: string
+}
+
+export interface VendorPayout {
+  id: string
+  sellerId: string
+  amount: number
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  method: string
+  accountInfo?: string
+  reference?: string
+  processedAt?: string
+  createdAt: string
+}
+
+// ==================== AUTH STORE ====================
+
 interface AuthState {
   user: User | null
   token: string | null
@@ -375,23 +408,34 @@ export const useAuthStore = create<AuthState>()(
         user: state.user ? { ...state.user, ...userData } : null
       }))
     }),
-    { name: 'auth-storage' }
+    { name: 'stylehub-auth' }
   )
 )
 
-// Cart Store
+// ==================== CART STORE ====================
+
 interface CartState {
   items: CartItem[]
   appliedCoupon: Coupon | null
-  addItem: (product: Product, quantity?: number, variant?: ProductVariant) => void
+  giftCard: GiftCard | null
+  loyaltyPointsUsed: number
+  addItem: (product: Product, quantity?: number, variant?: { size?: string; color?: string }) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
+  moveToWishlist: (productId: string) => void
+  saveForLater: (productId: string) => void
+  moveToCart: (productId: string) => void
   clearCart: () => void
   applyCoupon: (coupon: Coupon | null) => void
+  applyGiftCard: (giftCard: GiftCard | null) => void
+  setLoyaltyPoints: (points: number) => void
   getSubtotal: () => number
   getDiscount: () => number
+  getShipping: () => number
+  getTax: () => number
   getTotal: () => number
   getItemCount: () => number
+  getSavedItems: () => CartItem[]
 }
 
 export const useCartStore = create<CartState>()(
@@ -399,16 +443,19 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       appliedCoupon: null,
+      giftCard: null,
+      loyaltyPointsUsed: 0,
       addItem: (product, quantity = 1, variant) => set((state) => {
+        const key = variant ? `${product.id}-${JSON.stringify(variant)}` : product.id
         const existingItem = state.items.find(item => 
-          item.product.id === product.id && 
-          (!variant || JSON.stringify(item.variant) === JSON.stringify(variant))
+          (variant ? JSON.stringify(item.variant) === JSON.stringify(variant) : !item.variant) &&
+          item.product.id === product.id
         )
         if (existingItem) {
           return {
             items: state.items.map(item =>
               item.product.id === product.id && 
-              (!variant || JSON.stringify(item.variant) === JSON.stringify(variant))
+              (variant ? JSON.stringify(item.variant) === JSON.stringify(variant) : !item.variant)
                 ? { ...item, quantity: item.quantity + quantity }
                 : item
             )
@@ -426,31 +473,82 @@ export const useCartStore = create<CartState>()(
             )
           : state.items.filter(item => item.product.id !== productId)
       })),
-      clearCart: () => set({ items: [], appliedCoupon: null }),
-      applyCoupon: (coupon) => set({ appliedCoupon: coupon }),
-      getSubtotal: () => get().items.reduce((sum, item) => {
-        const price = item.variant?.price || item.product.price
-        return sum + price * item.quantity
-      }, 0),
-      getDiscount: () => {
-        const { items, appliedCoupon } = get()
-        if (!appliedCoupon) return 0
-        const subtotal = get().getSubtotal()
-        if (appliedCoupon.minPurchase && subtotal < appliedCoupon.minPurchase) return 0
-        let discount = appliedCoupon.type === 'percentage' 
-          ? subtotal * (appliedCoupon.value / 100)
-          : appliedCoupon.value
-        if (appliedCoupon.maxDiscount) discount = Math.min(discount, appliedCoupon.maxDiscount)
-        return discount
+      moveToWishlist: (productId) => {
+        set((state) => ({
+          items: state.items.filter(item => item.product.id !== productId)
+        }))
       },
-      getTotal: () => get().getSubtotal() - get().getDiscount(),
-      getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0)
+      saveForLater: (productId) => set((state) => ({
+        items: state.items.map(item =>
+          item.product.id === productId ? { ...item, savedForLater: true } : item
+        )
+      })),
+      moveToCart: (productId) => set((state) => ({
+        items: state.items.map(item =>
+          item.product.id === productId ? { ...item, savedForLater: false } : item
+        )
+      })),
+      clearCart: () => set({ items: [], appliedCoupon: null, giftCard: null, loyaltyPointsUsed: 0 }),
+      applyCoupon: (coupon) => set({ appliedCoupon: coupon }),
+      applyGiftCard: (giftCard) => set({ giftCard }),
+      setLoyaltyPoints: (points) => set({ loyaltyPointsUsed: points }),
+      getSubtotal: () => get().items
+        .filter(item => !item.savedForLater)
+        .reduce((sum, item) => {
+          const price = item.variant && item.product.flashSale?.isActive
+            ? item.product.flashSale.salePrice
+            : item.product.price
+          return sum + price * item.quantity
+        }, 0),
+      getDiscount: () => {
+        const { items, appliedCoupon, giftCard, loyaltyPointsUsed, getSubtotal } = get()
+        const subtotal = getSubtotal()
+        let discount = 0
+        
+        if (appliedCoupon) {
+          if (appliedCoupon.minPurchase && subtotal < appliedCoupon.minPurchase) return 0
+          discount = appliedCoupon.type === 'percentage' 
+            ? subtotal * (appliedCoupon.value / 100)
+            : appliedCoupon.value
+          if (appliedCoupon.maxDiscount) discount = Math.min(discount, appliedCoupon.maxDiscount)
+        }
+        
+        if (giftCard) {
+          discount += Math.min(giftCard.balance, subtotal - discount)
+        }
+        
+        // Loyalty points: 1 point = $0.01
+        discount += loyaltyPointsUsed * 0.01
+        
+        return Math.min(discount, subtotal)
+      },
+      getShipping: () => {
+        const { items, getSubtotal } = get()
+        const subtotal = getSubtotal()
+        const freeShippingThreshold = 50 // $50 free shipping
+        if (subtotal >= freeShippingThreshold) return 0
+        return items.filter(item => !item.savedForLater).reduce((sum, item) => {
+          if (item.product.freeShipping) return sum
+          return sum + (item.product.shippingPrice || 5.99)
+        }, 0)
+      },
+      getTax: () => {
+        const { getSubtotal, getDiscount } = get()
+        return (getSubtotal() - getDiscount()) * 0.08 // 8% tax
+      },
+      getTotal: () => {
+        const { getSubtotal, getDiscount, getShipping, getTax } = get()
+        return getSubtotal() - getDiscount() + getShipping() + getTax()
+      },
+      getItemCount: () => get().items.filter(item => !item.savedForLater).reduce((sum, item) => sum + item.quantity, 0),
+      getSavedItems: () => get().items.filter(item => item.savedForLater)
     }),
-    { name: 'cart-storage' }
+    { name: 'stylehub-cart' }
   )
 )
 
-// Wishlist Store
+// ==================== WISHLIST STORE ====================
+
 interface WishlistState {
   items: WishlistItem[]
   setItems: (items: WishlistItem[]) => void
@@ -482,130 +580,51 @@ export const useWishlistStore = create<WishlistState>()(
       isInWishlist: (productId) => !!get().items.find(item => item.productId === productId),
       getItemCount: () => get().items.length
     }),
-    { name: 'wishlist-storage' }
+    { name: 'stylehub-wishlist' }
   )
 )
 
-// UI Store
-interface UIState {
-  currentView: 'home' | 'shop' | 'seller' | 'orders' | 'admin' | 'wishlist' | 'messages' | 'profile' | 'blog' | 'about' | 'faq' | 'seller-store' | 'help' | 'compare' | 'returns' | 'giftcards' | 'referrals' | 'price-alerts' | 'addresses' | 'brands' | 'collections' | 'deals' | 'new-arrivals' | 'best-sellers' | 'flash-sale' | 'size-guide' | 'contact' | 'privacy' | 'terms'
-  selectedProduct: Product | null
-  selectedSeller: User | null
-  searchQuery: string
-  selectedCategory: string
-  priceRange: [number, number]
-  selectedBrands: string[]
-  selectedConditions: string[]
-  sortBy: 'newest' | 'price-low' | 'price-high' | 'popular' | 'rating'
-  viewMode: 'grid' | 'list'
-  showLoginModal: boolean
-  showCart: boolean
-  showProductModal: boolean
-  showFilters: boolean
-  darkMode: boolean
-  setCurrentView: (view: UIState['currentView']) => void
-  setSelectedProduct: (product: Product | null) => void
-  setSelectedSeller: (seller: User | null) => void
-  setSearchQuery: (query: string) => void
-  setSelectedCategory: (category: string) => void
-  setPriceRange: (range: [number, number]) => void
-  setSelectedBrands: (brands: string[]) => void
-  setSelectedConditions: (conditions: string[]) => void
-  setSortBy: (sort: UIState['sortBy']) => void
-  setViewMode: (mode: 'grid' | 'list') => void
-  setShowLoginModal: (show: boolean) => void
-  setShowCart: (show: boolean) => void
-  setShowProductModal: (show: boolean) => void
-  setShowFilters: (show: boolean) => void
-  toggleDarkMode: () => void
-}
+// ==================== COMPARISON STORE ====================
 
-export const useUIStore = create<UIState>()(
-  persist(
-    (set) => ({
-      currentView: 'home',
-      selectedProduct: null,
-      selectedSeller: null,
-      searchQuery: '',
-      selectedCategory: 'all',
-      priceRange: [0, 10000],
-      selectedBrands: [],
-      selectedConditions: [],
-      sortBy: 'newest',
-      viewMode: 'grid',
-      showLoginModal: false,
-      showCart: false,
-      showProductModal: false,
-      showFilters: false,
-      darkMode: false,
-      setCurrentView: (view) => set({ currentView: view }),
-      setSelectedProduct: (product) => set({ selectedProduct: product }),
-      setSelectedSeller: (seller) => set({ selectedSeller: seller }),
-      setSearchQuery: (query) => set({ searchQuery: query }),
-      setSelectedCategory: (category) => set({ selectedCategory: category }),
-      setPriceRange: (range) => set({ priceRange: range }),
-      setSelectedBrands: (brands) => set({ selectedBrands: brands }),
-      setSelectedConditions: (conditions) => set({ selectedConditions: conditions }),
-      setSortBy: (sort) => set({ sortBy: sort }),
-      setViewMode: (mode) => set({ viewMode: mode }),
-      setShowLoginModal: (show) => set({ showLoginModal: show }),
-      setShowCart: (show) => set({ showCart: show }),
-      setShowProductModal: (show) => set({ showProductModal: show }),
-      setShowFilters: (show) => set({ showFilters: show }),
-      toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode }))
-    }),
-    { name: 'ui-storage', partialize: (state) => ({ darkMode: state.darkMode, viewMode: state.viewMode }) }
-  )
-)
-
-// ==================== NEW STORES ====================
-
-// Compare Store - for product comparison
-interface CompareState {
-  items: CompareProduct[]
+interface ComparisonState {
+  items: Product[]
   maxItems: number
   addItem: (product: Product) => void
   removeItem: (productId: string) => void
-  clearAll: () => void
-  hasItem: (productId: string) => boolean
-  getItemCount: () => number
+  clearComparison: () => void
+  isInComparison: (productId: string) => boolean
 }
 
-export const useCompareStore = create<CompareState>()(
+export const useComparisonStore = create<ComparisonState>()(
   persist(
     (set, get) => ({
       items: [],
       maxItems: 4,
       addItem: (product) => set((state) => {
-        if (state.items.length >= state.maxItems) return state
-        if (state.items.find(item => item.productId === product.id)) return state
-        return { 
-          items: [...state.items, { 
-            id: Date.now().toString(), 
-            productId: product.id, 
-            product,
-            addedAt: new Date().toISOString() 
-          }] 
+        if (state.items.find(item => item.id === product.id)) return state
+        if (state.items.length >= state.maxItems) {
+          return { items: [...state.items.slice(1), product] }
         }
+        return { items: [...state.items, product] }
       }),
       removeItem: (productId) => set((state) => ({
-        items: state.items.filter(item => item.productId !== productId)
+        items: state.items.filter(item => item.id !== productId)
       })),
-      clearAll: () => set({ items: [] }),
-      hasItem: (productId) => !!get().items.find(item => item.productId === productId),
-      getItemCount: () => get().items.length
+      clearComparison: () => set({ items: [] }),
+      isInComparison: (productId) => !!get().items.find(item => item.id === productId)
     }),
-    { name: 'compare-storage' }
+    { name: 'stylehub-comparison' }
   )
 )
 
-// Recently Viewed Store
+// ==================== RECENTLY VIEWED STORE ====================
+
 interface RecentlyViewedState {
   items: RecentlyViewedItem[]
   maxItems: number
-  addItem: (product: Product) => void
-  clearAll: () => void
+  addProduct: (product: Product) => void
   getItems: () => RecentlyViewedItem[]
+  clearHistory: () => void
 }
 
 export const useRecentlyViewedStore = create<RecentlyViewedState>()(
@@ -613,74 +632,160 @@ export const useRecentlyViewedStore = create<RecentlyViewedState>()(
     (set, get) => ({
       items: [],
       maxItems: 20,
-      addItem: (product) => set((state) => {
-        const filtered = state.items.filter(item => item.productId !== product.id)
-        const newItems = [
-          { 
-            id: Date.now().toString(), 
-            productId: product.id, 
-            product,
-            viewedAt: new Date().toISOString() 
-          },
-          ...filtered
-        ].slice(0, state.maxItems)
-        return { items: newItems }
+      addProduct: (product) => set((state) => {
+        const existing = state.items.find(item => item.productId === product.id)
+        if (existing) {
+          return {
+            items: [
+              { ...existing, viewCount: existing.viewCount + 1, lastViewed: new Date().toISOString() },
+              ...state.items.filter(item => item.productId !== product.id)
+            ]
+          }
+        }
+        return {
+          items: [
+            { id: Date.now().toString(), productId: product.id, product, viewCount: 1, lastViewed: new Date().toISOString() },
+            ...state.items.slice(0, state.maxItems - 1)
+          ]
+        }
       }),
-      clearAll: () => set({ items: [] }),
-      getItems: () => get().items
+      getItems: () => get().items,
+      clearHistory: () => set({ items: [] })
     }),
-    { name: 'recently-viewed-storage' }
+    { name: 'stylehub-recently-viewed' }
   )
 )
 
-// Address Store
-interface AddressState {
-  addresses: Address[]
-  selectedAddress: Address | null
-  setAddresses: (addresses: Address[]) => void
-  addAddress: (address: Address) => void
-  updateAddress: (id: string, updates: Partial<Address>) => void
-  removeAddress: (id: string) => void
-  setSelectedAddress: (address: Address | null) => void
-  setDefault: (id: string) => void
+// ==================== UI STORE ====================
+
+interface UIState {
+  currentView: string
+  previousView: string | null
+  selectedProduct: Product | null
+  selectedSeller: User | null
+  selectedBrand: Brand | null
+  selectedCategory: string
+  selectedSubCategory: string
+  searchQuery: string
+  sortBy: 'newest' | 'price-low' | 'price-high' | 'popular' | 'rating'
+  viewMode: 'grid' | 'list'
+  priceRange: [number, number]
+  selectedBrands: string[]
+  selectedConditions: string[]
+  selectedGenders: string[]
+  showLoginModal: boolean
+  showRegisterModal: boolean
+  showCart: boolean
+  showWishlist: boolean
+  showComparison: boolean
+  showProductModal: boolean
+  showFilters: boolean
+  showSearch: boolean
+  darkMode: boolean
+  sidebarOpen: boolean
+  
+  // Setters
+  setCurrentView: (view: string) => void
+  setPreviousView: (view: string | null) => void
+  setSelectedProduct: (product: Product | null) => void
+  setSelectedSeller: (seller: User | null) => void
+  setSelectedBrand: (brand: Brand | null) => void
+  setSelectedCategory: (category: string) => void
+  setSelectedSubCategory: (subCategory: string) => void
+  setSearchQuery: (query: string) => void
+  setSortBy: (sort: UIState['sortBy']) => void
+  setViewMode: (mode: 'grid' | 'list') => void
+  setPriceRange: (range: [number, number]) => void
+  setSelectedBrands: (brands: string[]) => void
+  setSelectedConditions: (conditions: string[]) => void
+  setSelectedGenders: (genders: string[]) => void
+  setShowLoginModal: (show: boolean) => void
+  setShowRegisterModal: (show: boolean) => void
+  setShowCart: (show: boolean) => void
+  setShowWishlist: (show: boolean) => void
+  setShowComparison: (show: boolean) => void
+  setShowProductModal: (show: boolean) => void
+  setShowFilters: (show: boolean) => void
+  setShowSearch: (show: boolean) => void
+  toggleDarkMode: () => void
+  setSidebarOpen: (open: boolean) => void
+  clearFilters: () => void
 }
 
-export const useAddressStore = create<AddressState>()(
+export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      addresses: [],
-      selectedAddress: null,
-      setAddresses: (addresses) => set({ addresses }),
-      addAddress: (address) => set((state) => ({ 
-        addresses: [...state.addresses, address] 
-      })),
-      updateAddress: (id, updates) => set((state) => ({ 
-        addresses: state.addresses.map(addr => 
-          addr.id === id ? { ...addr, ...updates } : addr
-        ) 
-      })),
-      removeAddress: (id) => set((state) => ({ 
-        addresses: state.addresses.filter(addr => addr.id !== id) 
-      })),
-      setSelectedAddress: (address) => set({ selectedAddress: address }),
-      setDefault: (id) => set((state) => ({ 
-        addresses: state.addresses.map(addr => ({
-          ...addr,
-          isDefault: addr.id === id
-        })) 
-      }))
+      currentView: 'home',
+      previousView: null,
+      selectedProduct: null,
+      selectedSeller: null,
+      selectedBrand: null,
+      selectedCategory: 'all',
+      selectedSubCategory: 'all',
+      searchQuery: '',
+      sortBy: 'newest',
+      viewMode: 'grid',
+      priceRange: [0, 10000],
+      selectedBrands: [],
+      selectedConditions: [],
+      selectedGenders: [],
+      showLoginModal: false,
+      showRegisterModal: false,
+      showCart: false,
+      showWishlist: false,
+      showComparison: false,
+      showProductModal: false,
+      showFilters: false,
+      showSearch: false,
+      darkMode: false,
+      sidebarOpen: false,
+      
+      setCurrentView: (view) => set({ currentView: view }),
+      setPreviousView: (view) => set({ previousView: view }),
+      setSelectedProduct: (product) => set({ selectedProduct: product }),
+      setSelectedSeller: (seller) => set({ selectedSeller: seller }),
+      setSelectedBrand: (brand) => set({ selectedBrand: brand }),
+      setSelectedCategory: (category) => set({ selectedCategory: category }),
+      setSelectedSubCategory: (subCategory) => set({ selectedSubCategory: subCategory }),
+      setSearchQuery: (query) => set({ searchQuery: query }),
+      setSortBy: (sort) => set({ sortBy: sort }),
+      setViewMode: (mode) => set({ viewMode: mode }),
+      setPriceRange: (range) => set({ priceRange: range }),
+      setSelectedBrands: (brands) => set({ selectedBrands: brands }),
+      setSelectedConditions: (conditions) => set({ selectedConditions: conditions }),
+      setSelectedGenders: (genders) => set({ selectedGenders: genders }),
+      setShowLoginModal: (show) => set({ showLoginModal: show }),
+      setShowRegisterModal: (show) => set({ showRegisterModal: show }),
+      setShowCart: (show) => set({ showCart: show }),
+      setShowWishlist: (show) => set({ showWishlist: show }),
+      setShowComparison: (show) => set({ showComparison: show }),
+      setShowProductModal: (show) => set({ showProductModal: show }),
+      setShowFilters: (show) => set({ showFilters: show }),
+      setShowSearch: (show) => set({ showSearch: show }),
+      toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      clearFilters: () => set({
+        selectedCategory: 'all',
+        selectedSubCategory: 'all',
+        priceRange: [0, 10000],
+        selectedBrands: [],
+        selectedConditions: [],
+        selectedGenders: [],
+        searchQuery: ''
+      })
     }),
-    { name: 'address-storage' }
+    { name: 'stylehub-ui', partialize: (state) => ({ darkMode: state.darkMode, viewMode: state.viewMode }) }
   )
 )
 
-// Price Alerts Store
+// ==================== PRICE ALERTS STORE ====================
+
 interface PriceAlertState {
   alerts: PriceAlert[]
   setAlerts: (alerts: PriceAlert[]) => void
-  addAlert: (alert: PriceAlert) => void
-  removeAlert: (id: string) => void
-  toggleActive: (id: string) => void
+  addAlert: (productId: string, targetPrice: number) => void
+  removeAlert: (alertId: string) => void
+  updateAlert: (alertId: string, updates: Partial<PriceAlert>) => void
 }
 
 export const usePriceAlertStore = create<PriceAlertState>()(
@@ -688,56 +793,25 @@ export const usePriceAlertStore = create<PriceAlertState>()(
     (set) => ({
       alerts: [],
       setAlerts: (alerts) => set({ alerts }),
-      addAlert: (alert) => set((state) => ({ 
-        alerts: [...state.alerts, alert] 
+      addAlert: (productId, targetPrice) => set((state) => ({
+        alerts: [...state.alerts, {
+          id: Date.now().toString(),
+          userId: '',
+          productId,
+          targetPrice,
+          isNotified: false,
+          createdAt: new Date().toISOString()
+        }]
       })),
-      removeAlert: (id) => set((state) => ({ 
-        alerts: state.alerts.filter(alert => alert.id !== id) 
+      removeAlert: (alertId) => set((state) => ({
+        alerts: state.alerts.filter(alert => alert.id !== alertId)
       })),
-      toggleActive: (id) => set((state) => ({ 
+      updateAlert: (alertId, updates) => set((state) => ({
         alerts: state.alerts.map(alert => 
-          alert.id === id ? { ...alert, isActive: !alert.isActive } : alert
-        ) 
+          alert.id === alertId ? { ...alert, ...updates } : alert
+        )
       }))
     }),
-    { name: 'price-alert-storage' }
-  )
-)
-
-// Gift Card Store (for redemption during checkout)
-interface GiftCardState {
-  appliedGiftCard: GiftCard | null
-  applyGiftCard: (card: GiftCard | null) => void
-  getGiftCardBalance: () => number
-}
-
-export const useGiftCardStore = create<GiftCardState>()(
-  persist(
-    (set, get) => ({
-      appliedGiftCard: null,
-      applyGiftCard: (card) => set({ appliedGiftCard: card }),
-      getGiftCardBalance: () => get().appliedGiftCard?.amount || 0
-    }),
-    { name: 'giftcard-storage' }
-  )
-)
-
-// Referral Store
-interface ReferralState {
-  referralCode: string | null
-  referralStats: { total: number; completed: number; earned: number } | null
-  setReferralCode: (code: string | null) => void
-  setReferralStats: (stats: { total: number; completed: number; earned: number } | null) => void
-}
-
-export const useReferralStore = create<ReferralState>()(
-  persist(
-    (set) => ({
-      referralCode: null,
-      referralStats: null,
-      setReferralCode: (code) => set({ referralCode: code }),
-      setReferralStats: (stats) => set({ referralStats: stats })
-    }),
-    { name: 'referral-storage' }
+    { name: 'stylehub-price-alerts' }
   )
 )
