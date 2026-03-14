@@ -1,0 +1,688 @@
+// This is your Prisma schema file
+// StyleHub Marketplace - Complete Feature Set
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER SYSTEM ====================
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  password        String
+  name            String
+  role            String        @default("BUYER")
+  phone           String?
+  avatar          String?
+  bio             String?
+  website         String?
+  socialLinks     String?
+  
+  // Seller specific
+  storeName       String?
+  storeDesc       String?
+  storeBanner     String?
+  storeLogo       String?
+  storeTheme      String?
+  storeSlug       String?       @unique
+  isVerified      Boolean       @default(false)
+  verifiedAt      DateTime?
+  
+  // Financial
+  balance         Float         @default(0)
+  loyaltyPoints   Int           @default(0)
+  totalSpent      Float         @default(0)
+  totalOrders     Int           @default(0)
+  
+  // Address
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  zipCode         String?
+  
+  // Settings
+  emailVerified   Boolean       @default(false)
+  newsletterOptIn Boolean       @default(true)
+  darkMode        Boolean       @default(false)
+  language        String        @default("en")
+  currency        String        @default("USD")
+  
+  // Timestamps
+  lastLoginAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  products        Product[]
+  orders          Order[]
+  reviews         Review[]
+  wishlist        Wishlist[]
+  messages        Message[]     @relation("MessageSender")
+  receivedMsgs    Message[]     @relation("MessageReceiver")
+  notifications   Notification[]
+  userCoupons     UserCoupon[]
+  follows         Follow[]      @relation("UserFollows")
+  followers       Follow[]      @relation("UserFollowers")
+  blogs           Blog[]
+  addresses       Address[]
+  cartItems       CartItem[]
+  recentlyViewed  RecentlyViewed[]
+  priceAlerts     PriceAlert[]
+  comparisons     Comparison[]
+  giftCards       GiftCard[]    @relation("GiftCardOwner")
+  createdGiftCards GiftCard[]   @relation("GiftCardCreator")
+  supportTickets  SupportTicket[]
+  ticketReplies   TicketReply[]
+}
+
+model Address {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String
+  fullName      String
+  phone         String
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String?
+  country       String
+  zipCode       String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== PRODUCT SYSTEM ====================
+
+model Product {
+  id                String        @id @default(cuid())
+  name              String
+  slug              String?       @unique
+  sku               String?       @unique
+  description       String
+  shortDesc         String?
+  
+  // Pricing
+  price             Float
+  comparePrice      Float?
+  costPrice         Float?
+  currency          String        @default("USD")
+  
+  // Media
+  images            String        @default("[]")
+  videos            String?
+  thumbnail         String?
+  
+  // Categorization
+  category          String
+  subCategory       String?
+  brand             String?
+  tags              String?
+  
+  // Attributes
+  condition         String        @default("new")
+  material          String?
+  color             String?
+  size              String?
+  gender            String?
+  
+  // Inventory
+  stock             Int           @default(1)
+  lowStockThreshold Int           @default(5)
+  
+  // Stats
+  views             Int           @default(0)
+  wishlistCount     Int           @default(0)
+  soldCount         Int           @default(0)
+  rating            Float         @default(0)
+  reviewCount       Int           @default(0)
+  
+  // Status
+  status            String        @default("active")
+  featured          Boolean       @default(false)
+  isNew             Boolean       @default(true)
+  isTrending        Boolean       @default(false)
+  isBestSeller      Boolean       @default(false)
+  
+  // Shipping
+  freeShipping      Boolean       @default(false)
+  shippingPrice     Float?
+  shippingDays      Int?
+  
+  // Relations
+  sellerId          String
+  seller            User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  orderItems        OrderItem[]
+  reviews           Review[]
+  wishlist          Wishlist[]
+  cartItems         CartItem[]
+  recentlyViewed    RecentlyViewed[]
+  priceAlerts       PriceAlert[]
+  comparisons       Comparison[]
+  flashSale         FlashSale?
+  priceHistory      PriceHistory[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price       Float
+  comparePrice Float?
+  recordedAt  DateTime @default(now())
+}
+
+// ==================== CART & CHECKOUT ====================
+
+model CartItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity    Int
+  variant     String?
+  savedForLater Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, productId])
+}
+
+// ==================== ORDERS ====================
+
+model Order {
+  id                String        @id @default(cuid())
+  orderNumber       String        @unique
+  invoiceNumber     String?
+  
+  buyerId           String
+  buyer             User          @relation(fields: [buyerId], references: [id])
+  items             OrderItem[]
+  
+  // Pricing
+  subtotal          Float
+  discount          Float         @default(0)
+  shipping          Float         @default(0)
+  tax               Float         @default(0)
+  totalAmount       Float
+  commission        Float         @default(0)
+  sellerEarnings    Float         @default(0)
+  currency          String        @default("USD")
+  
+  // Status
+  status            String        @default("pending")
+  paymentMethod     String        @default("cash")
+  paymentStatus     String        @default("pending")
+  paymentId         String?
+  paidAt            DateTime?
+  
+  // Shipping
+  shippingAddress   String?
+  shippingCity      String?
+  shippingState     String?
+  shippingCountry   String?
+  shippingZipCode   String?
+  shippingPhone     String?
+  shippingMethod    String?
+  trackingNumber    String?
+  trackingUrl       String?
+  carrier           String?
+  estimatedDelivery DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  
+  // Additional
+  buyerPhone        String?
+  buyerEmail        String?
+  notes             String?
+  giftMessage       String?
+  isGift            Boolean       @default(false)
+  
+  // Points
+  loyaltyEarned     Int           @default(0)
+  loyaltyUsed       Int           @default(0)
+  
+  // Coupon
+  couponCode        String?
+  couponDiscount    Float         @default(0)
+  
+  // Gift Card
+  giftCardCode      String?
+  giftCardDiscount  Float         @default(0)
+  
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  sellerId    String
+  quantity    Int
+  price       Float
+  variant     String?
+  status      String   @default("pending")
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ==================== REVIEWS ====================
+
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  orderId     String?
+  rating      Int
+  title       String?
+  comment     String
+  images      String?
+  isVerified  Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  helpful     Int      @default(0)
+  notHelpful  Int      @default(0)
+  reply       String?
+  repliedAt   DateTime?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, productId])
+}
+
+// ==================== WISHLIST ====================
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, productId])
+}
+
+model RecentlyViewed {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  viewCount  Int      @default(1)
+  lastViewed DateTime @default(now())
+  
+  @@unique([userId, productId])
+}
+
+model PriceAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  targetPrice Float
+  isNotified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Comparison {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, productId])
+}
+
+// ==================== PROMOTIONS ====================
+
+model Coupon {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  type         String
+  value        Float
+  minPurchase  Float?
+  maxDiscount  Float?
+  usageLimit   Int?
+  usedCount    Int          @default(0)
+  perUserLimit Int          @default(1)
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean      @default(true)
+  description  String?
+  createdAt    DateTime     @default(now())
+  userCoupons  UserCoupon[]
+}
+
+model UserCoupon {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  couponId   String
+  coupon     Coupon    @relation(fields: [couponId], references: [id])
+  isUsed     Boolean   @default(false)
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+  
+  @@unique([userId, couponId])
+}
+
+model FlashSale {
+  id          String    @id @default(cuid())
+  productId   String    @unique
+  product     Product   @relation(fields: [productId], references: [id])
+  salePrice   Float
+  quantity    Int
+  sold        Int       @default(0)
+  startTime   DateTime
+  endTime     DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+}
+
+model Bundle {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  discount    Float
+  price       Float
+  productIds  String   // JSON array of product IDs
+  images      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ==================== GIFT CARDS ====================
+
+model GiftCard {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  amount        Float
+  balance       Float
+  currency      String    @default("USD")
+  ownerId       String?
+  owner         User?     @relation("GiftCardOwner", fields: [ownerId], references: [id])
+  createdById   String?
+  createdBy     User?     @relation("GiftCardCreator", fields: [createdById], references: [id])
+  recipientEmail String?
+  message       String?
+  isUsed        Boolean   @default(false)
+  usedAt        DateTime?
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+}
+
+// ==================== REFERRAL SYSTEM ====================
+
+model Referral {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  referrerId      String    @unique
+  referredCount   Int       @default(0)
+  totalRewards    Float     @default(0)
+  rewardPerReferral Float   @default(10)
+  pointsPerReferral Int     @default(100)
+  createdAt       DateTime  @default(now())
+}
+
+// ==================== COMMUNICATION ====================
+
+model Message {
+  id          String    @id @default(cuid())
+  senderId    String
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id])
+  productId   String?
+  orderId     String?
+  subject     String?
+  message     String
+  attachments String?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  image     String?
+  data      String?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model SupportTicket {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  orderId     String?
+  subject     String
+  category    String
+  priority    String        @default("normal")
+  status      String        @default("open")
+  replies     TicketReply[]
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model TicketReply {
+  id          String        @id @default(cuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  message     String
+  attachments String?
+  isStaff     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+}
+
+// ==================== BLOG ====================
+
+model Blog {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  category    String?
+  tags        String?
+  status      String    @default("draft")
+  views       Int       @default(0)
+  likes       Int       @default(0)
+  isFeatured  Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ==================== SOCIAL ====================
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  
+  @@unique([followerId, followingId])
+}
+
+// ==================== SETTINGS ====================
+
+model PlatformSettings {
+  id                  String  @id @default(cuid())
+  platformName        String  @default("StyleHub")
+  platformDesc        String?
+  platformLogo        String?
+  platformBanner      String?
+  platformFavicon     String?
+  commissionRate      Float   @default(0.10)
+  minPayout           Float   @default(50)
+  loyaltyRate         Float   @default(0.01)
+  pointValue          Float   @default(0.01)
+  referralBonus       Float   @default(10)
+  referralPoints      Int     @default(100)
+  primaryColor        String  @default("#7c3aed")
+  secondaryColor      String  @default("#ec4899")
+  supportEmail        String?
+  supportPhone        String?
+  socialLinks         String?
+  seoTitle            String?
+  seoDesc             String?
+  seoKeywords         String?
+  termsOfService      String?
+  privacyPolicy       String?
+  returnPolicy        String?
+  shippingPolicy      String?
+  freeShippingThreshold Float?
+  defaultShippingCost  Float  @default(5.99)
+}
+
+// ==================== NEWSLETTER ====================
+
+model Newsletter {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  isActive       Boolean   @default(true)
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  repliedAt DateTime?
+  reply     String?
+  createdAt DateTime @default(now())
+}
+
+// ==================== HELP CENTER ====================
+
+model HelpCategory {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  icon      String?
+  order     Int           @default(0)
+  articles  HelpArticle[]
+  createdAt DateTime      @default(now())
+}
+
+model HelpArticle {
+  id          String    @id @default(cuid())
+  categoryId  String
+  category    HelpCategory @relation(fields: [categoryId], references: [id])
+  title       String
+  slug        String    @unique
+  content     String
+  views       Int       @default(0)
+  helpful     Int       @default(0)
+  notHelpful  Int       @default(0)
+  isFeatured  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ==================== BANNERS ====================
+
+model Banner {
+  id          String    @id @default(cuid())
+  title       String
+  subtitle    String?
+  image       String
+  link        String?
+  buttonText  String?
+  position    String    @default("hero")
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+// ==================== COLLECTIONS ====================
+
+model Collection {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  productIds  String?
+  isFeatured  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+// ==================== BRANDS ====================
+
+model Brand {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  slug          String    @unique
+  logo          String?
+  banner        String?
+  description   String?
+  website       String?
+  isVerified    Boolean   @default(false)
+  isFeatured    Boolean   @default(false)
+  productCount  Int       @default(0)
+  followerCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ==================== VENDOR PAYOUTS ====================
+
+model VendorPayout {
+  id          String    @id @default(cuid())
+  sellerId    String
+  amount      Float
+  status      String    @default("pending")
+  method      String
+  accountInfo String?
+  reference   String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
